@@ -1,7 +1,11 @@
+# based on: https://huggingface.co/learn/llm-course/chapter7/2?fw=pt
+# and: https://huggingface.co/docs/transformers/main/tasks/token_classification
 
 
-
-
+# %%
+from transformers import AutoTokenizer
+import evaluate
+import numpy as np
 
 
 #%%
@@ -134,10 +138,69 @@ for k, v in dataset.items():
         "labels": labels
     } 
     ner_labels = ner_labels.union(set(labels))
-    
+
+# %%
+ner_labels = sorted(list(ner_labels))
+id2label = dict()
+label2id = dict()  
+for index, label in enumerate(ner_labels):
+    id2label[index] = label
+    label2id[label] = index
+
 # %%
 print(dataset_new)
 print(ner_labels)
+print(id2label)
+print(label2id)
 # %%
 print(dataset_new[0]["text"])
 print(dataset_new[0]["labels"])
+
+
+
+# %%
+# model: https://huggingface.co/emilyalsentzer/Bio_ClinicalBERT
+model_checkpoint = "emilyalsentzer/Bio_ClinicalBERT"
+tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+
+
+# %%
+# align ClinicalBERT tokenization with NER-labels
+# (subwords, special tokens etc)
+def align_tokens_with_labels(tokenized_data, data_line):
+    
+    # for index, label in enumerate(data_dict[3]["labels"]): # [3] example data
+    word_ids = tokenized_data.word_ids()
+    previous_word_id = None
+    label_ids = list()
+        
+    for word_id in word_ids:
+        if word_id is None:
+            label_ids.append(-100)
+        # Only label the first (sub)token of a given word
+        # https://datascience.stackexchange.com/questions/69640/what-should-be-the-labels-for-subword-tokens-in-bert-for-ner-task
+        elif word_id != previous_word_id:
+            label_ids.append(data_line["labels"][word_id])
+        else:
+            label_ids.append(-100)
+        previous_word_id = word_id
+
+    
+    tokenized_data["labels"] = label_ids    
+    
+    return tokenized_data
+
+
+# %%
+# align dataset after tokenizationwith ClinicalBERT
+dataset_aligned = dict()
+for index in dataset_new:
+    # tokenize line with ClinicalBERT
+    tokens = tokenizer(dataset_new[index]["text"], is_split_into_words=True)
+    tokens = align_tokens_with_labels(tokens, dataset_new[index])
+
+    dataset_aligned[index] = tokens
+
+print(dataset_aligned[0].word_ids())
+print(dataset_aligned[0].tokens())
+print(dataset_aligned[0].labels)
