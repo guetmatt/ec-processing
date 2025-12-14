@@ -4,11 +4,20 @@
 
 # %%
 import pandas as pd
-from transformers import AutoTokenizer
-from datasets import Dataset, interleave_datasets
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from datasets import Dataset
 from transformers import DataCollatorForTokenClassification
 import evaluate
 import numpy as np
+from transformers import TrainingArguments, Trainer, AutoModelForTokenClassification
+import accelerate
+from accelerate import Accelerator
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from transformers import get_scheduler
+from huggingface_hub import Repository, get_full_repo_name
+from tqdm.auto import tqdm
+import torch
 
 
 data = """
@@ -226,7 +235,7 @@ for entry in ds_tokenized:
 def label_id_mapping(ner_labels: set):
     labels = sorted(list(ner_labels), reverse=True) # reverse -> "O" in front = 0
     labels.remove("-100")
-    # id2label = dict()
+    id2label = dict()
     label2id = dict()
     for index, label in enumerate(labels):
         id2label[index] = label
@@ -278,4 +287,176 @@ metric = evaluate.load("seqeval")
 
 
 def compute_metrics(eval_preds):
+    logits, labels = eval_preds
+    predictions = np.argmax(logits, axis=-1)
     
+    # Remove ignored index (special tokens) and convert to labels
+    true_labels = list()
+    for label in labels:
+        sent_labels = list()
+        for l in label:
+            if l != -100:
+                sent_labels.append(id2label[l])
+        true_labels.append(sent_labels)
+    true_predictions = list()
+    for prediction, label in zip(predictions, labels):
+        sent_predictions = list()
+        for (p, l) in zip(prediction, label):
+            if l != -100:
+                sent_predictions.append(id2label[l])
+        true_predictions.append(sent_predictions)
+                
+    all_metrics = metric.compute(predictions=true_predictions, references=true_labels)
+    return {
+        "precision": all_metrics["overall_precision"],
+        "recall": all_metrics["overall_recall"],
+        "f1": all_metrics["overall_f1"],
+        "accuracy": all_metrics["overall_accuracy"],
+    }
+    
+# %%    
+# model
+# EVTL MUSS ICH "-100" NOCH AUS LABELS RAUSNEHMEN
+model = AutoModelForTokenClassification.from_pretrained(
+    model_checkpoint,
+    id2label=id2label,
+    label2id=label2id
+)
+
+
+# %%
+# define training arguments
+args = TrainingArguments(
+    output_dir="ClinicalBERT_testing",
+    eval_strategy="epoch",
+    save_strategy="epoch",
+    learning_rate=2e-5,
+    num_train_epochs=3,
+    weight_decay=0.01,
+    push_to_hub=False
+)
+
+
+
+# %%
+# training
+trainer = Trainer(
+    model=model,
+    args=args,
+    train_dataset=ds_tok,
+    eval_dataset=ds_tok,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+    processing_class=tokenizer
+)
+trainer.train()
+
+
+
+# %%
+# full training loop
+# DEFINE TRAINING AND VALIDATION DATASET!
+train_dataloader = DataLoader(
+    ds_tok,
+    shuffle=True,
+    collate_fn=data_collator,
+    batch_size=8
+)
+
+eval_dataloader = DataLoader(
+    ds_tok,
+    collate_fn=data_collator,
+    batch_size=8
+)
+
+optimizer = AdamW(model.parameters(), lr=2e-5)
+
+accelerator = Accelerator()
+
+model, optimizer, train_dataloader, eval_dataloader = accelerator.prepare(
+    model, optimizer, train_dataloader, eval_dataloader
+)
+
+
+num_train_epochs = 3
+num_update_steps_per_epoch = len(train_dataloader)
+num_training_steps = num_train_epochs * num_update_steps_per_epoch
+
+lr_scheduler = get_scheduler(
+    "linear",
+    optimizer=optimizer,
+    num_warmup_steps=0,
+    num_training_steps=num_training_steps
+)
+
+
+output_dir = "ClinicalBERT_testing"
+
+
+# %%
+
+def postprocess(predictions, labels):
+    predictions = predictions.detach().cpu().clone().numpy()
+    labels = labels.detach().cpu().clone().numpy()
+    
+    # Remove ignored index (special tokens) and convert to labels
+    true_labels = [[id2label[l] for l in label if l != -100] for label in labels]
+    true_predictions = [
+        [id2label[p] for (p, l) in zip(prediction, label) if l != -100]
+        for prediction, label in zip(predictions, labels)
+    ]
+    return true_labels, true_predictions
+
+
+# %%
+progress_bar = tqdm(range(num_training_steps))
+
+for epoch in range(num_train_epochs):
+    
+    # training
+    model.train()
+    for batch in train_dataloader:
+        outputs = model(**batch)
+        loss = outputs.loss
+        accelerator.backward(loss)
+        
+        optimizer.step()
+        lr_scheduler.step()
+        optimizer.zero_grad()
+        progress_bar.update(1)
+    
+    # evaluation
+    model.eval()
+    for batch in eval_dataloader:
+        with torch.no_grad():
+            outputs = model(**batch)
+        
+        predictions = outputs.logits.argmax(dim=-1)
+        labels = batch["labels"]
+        
+        # Necessary to pad predictions and labels for being gathered
+        predictions = accelerator.pad_across_processes(predictions, dim=1, pad_index=-100)
+        labels = accelerator.pad_across_processes(labels, dim=1, pad_index=-100)
+        
+        predictions_gathered = accelerator.gather(predictions)
+        labels_gathered = accelerator.gather(labels)
+        
+        # true_predictions, true_labels = postprocess(predictions_gathered, labels_gathered)
+        true_labels, true_predictions = postprocess(predictions_gathered, labels_gathered)
+        metric.add_batch(predictions=true_predictions, references=true_labels)
+    
+    results = metric.compute()
+    print(
+        f"epoch {epoch}:",
+        {
+            key: results[f"overall_{key}"]
+            for key in ["precision", "recall", "f1", "accuracy"]
+        },
+    )
+    
+    # Save
+    accelerator.wait_for_everyone()
+    unwrapped_model = accelerator.unwrap_model(model)
+    unwrapped_model.save_pretrained(output_dir, save_function=accelerator.save)
+    if accelerator.is_main_process:
+        tokenizer.save_pretrained(output_dir)
