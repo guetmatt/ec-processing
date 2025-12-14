@@ -3,12 +3,14 @@
 
 
 # %%
+import pandas as pd
 from transformers import AutoTokenizer
+from datasets import Dataset, interleave_datasets
+from transformers import DataCollatorForTokenClassification
 import evaluate
 import numpy as np
 
 
-#%%
 data = """
 28:35:chronic_disease	has a significant risk for suicide
 46:49:chronic_disease	has any current primary diagnosis other than mdd , where primary diagnosis is defined as the primary source of current distress and functional impairment
@@ -41,10 +43,22 @@ data = """
 21:45:treatment	previous history of roux-en-y gastric bypass"""
 
 
-#%%
 data_lines = data.strip().split("\n")
 
-#%%
+
+
+# create dataset as dictionary
+# example entry:
+# {
+#   'text': 'has a significant risk for suicide',
+#   'entities': 
+#       [{
+#       'start': 27,
+#       'end': 35,
+#       'label': 'chronic_disease',
+#       'entity_text': 'suicide'
+#       }]
+#   }
 dataset = dict()
 for index, line in enumerate(data_lines):
     line_split = line.split("\t")
@@ -72,32 +86,23 @@ for index, line in enumerate(data_lines):
             }
         )
 
-# example entry of dataset dictionary
-# {
-#   'text': 'has a significant risk for suicide',
-#   'entities': 
-#       [{
-#       'start': 27,
-#       'end': 35,
-#       'label': 'chronic_disease',
-#       'entity_text': 'suicide'
-#       }]
-#   }
+# for el in dataset:
+    # print(dataset[el])
 
-                    
-#%%
-for el in dataset:
-    print(dataset[el])
 
+# %%
 
 # restructure dataset to NER-BIO scheme
-# %%
+# example entry
+#{
+#   'text': ['has', 'a', 'significant', 'risk', 'for', 'suicide'],
+#   'labels': ['O', 'O', 'O', 'O', 'O', 'B-chronic_disease']
+# }
 dataset_new = dict()
 ner_labels = set()
-
-for k, v in dataset.items():
-    text = v["text"]
-    entities = v["entities"]
+for key, val in dataset.items():
+    text = val["text"]
+    entities = val["entities"]
     
     tokens = list()
     token_spans = list()
@@ -133,28 +138,33 @@ for k, v in dataset.items():
                 else:
                     labels[index] = f"I-{ent_label}"
     
-    dataset_new[k] ={
+    dataset_new[key] ={
         "text": tokens,
         "labels": labels
     } 
     ner_labels = ner_labels.union(set(labels))
 
-# %%
-ner_labels = sorted(list(ner_labels))
-id2label = dict()
-label2id = dict()  
-for index, label in enumerate(ner_labels):
-    id2label[index] = label
-    label2id[label] = index
 
 # %%
-print(dataset_new)
-print(ner_labels)
-print(id2label)
-print(label2id)
+# print(dataset_new)
+# print(dataset_new[3]["text"])
+# print(dataset_new[3]["labels"])
+
+# restructure dataset-dictionary to dataset-class from huggingface transformers
+text_list = list()
+labels_list = list()
+for key, val in dataset_new.items():
+    text_list.append(val["text"])
+    labels_list.append(val["labels"])
+dataset_restructured = {
+    "text": text_list,
+    "labels": labels_list
+}
+
 # %%
-print(dataset_new[0]["text"])
-print(dataset_new[0]["labels"])
+print(dataset_restructured)
+ds = Dataset.from_dict(dataset_restructured)
+
 
 
 
@@ -165,42 +175,107 @@ tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 
 # %%
-# align ClinicalBERT tokenization with NER-labels
-# (subwords, special tokens etc)
-def align_tokens_with_labels(tokenized_data, data_line):
-    
-    # for index, label in enumerate(data_dict[3]["labels"]): # [3] example data
-    word_ids = tokenized_data.word_ids()
-    previous_word_id = None
-    label_ids = list()
-        
-    for word_id in word_ids:
-        if word_id is None:
-            label_ids.append(-100)
-        # Only label the first (sub)token of a given word
-        # https://datascience.stackexchange.com/questions/69640/what-should-be-the-labels-for-subword-tokens-in-bert-for-ner-task
-        elif word_id != previous_word_id:
-            label_ids.append(data_line["labels"][word_id])
-        else:
-            label_ids.append(-100)
-        previous_word_id = word_id
-
-    
-    tokenized_data["labels"] = label_ids    
-    
-    return tokenized_data
+ds_tok = tokenizer(ds[0]["text"], is_split_into_words=True)
+print(ds_tok)
+tokens = tokenizer.convert_ids_to_tokens(ds_tok["input_ids"])
+print(tokens)
 
 
 # %%
-# align dataset after tokenizationwith ClinicalBERT
-dataset_aligned = dict()
-for index in dataset_new:
-    # tokenize line with ClinicalBERT
-    tokens = tokenizer(dataset_new[index]["text"], is_split_into_words=True)
-    tokens = align_tokens_with_labels(tokens, dataset_new[index])
+# align ClinicalBERT tokenization with NER-labels
+# (subwords, special tokens etc)
+def align_tokens_with_labels(examples):
+    tokenized_inputs = tokenizer(examples["text"], truncation=True, is_split_into_words=True)
+    
+    labels = []
+    for i, label in enumerate(examples[f"labels"]):
+        word_ids = tokenized_inputs.word_ids(batch_index=i)  # Map tokens to their respective word.
+        previous_word_idx = None
+        label_ids = []
+        for word_idx in word_ids:  # Set the special tokens to -100.
+            if word_idx is None:
+                label_ids.append("-100")
+            elif word_idx != previous_word_idx:  # Only label the first token of a given word.
+                label_ids.append(label[word_idx])
+            else:
+                label_ids.append("-100")
+            previous_word_idx = word_idx
 
-    dataset_aligned[index] = tokens
+        labels.append(label_ids)
 
-print(dataset_aligned[0].word_ids())
-print(dataset_aligned[0].tokens())
-print(dataset_aligned[0].labels)
+    tokenized_inputs["labels"] = labels
+    return tokenized_inputs
+   
+   
+# %%
+ds_tokenized = ds.map(align_tokens_with_labels, batched=True)
+# tokens = tokenizer.convert_ids_to_tokens(ds_tokenized[-1]["input_ids"])
+# print(tokens)
+
+# %%
+print(ds_tokenized[-1]["labels"])
+
+# create set of ner labels used
+ner_labels = set()
+for entry in ds_tokenized:
+    ner_labels = ner_labels.union(set(entry["labels"]))
+
+# %%
+# create mapping dictionaries 
+# labels <-> label_ids
+def label_id_mapping(ner_labels: set):
+    labels = sorted(list(ner_labels), reverse=True) # reverse -> "O" in front = 0
+    labels.remove("-100")
+    # id2label = dict()
+    label2id = dict()
+    for index, label in enumerate(labels):
+        id2label[index] = label
+        label2id[label] = index
+    id2label[-100] = "-100"
+    label2id["-100"] = -100
+    
+    return id2label, label2id
+
+# %%
+id2label, label2id = label_id_mapping(ner_labels)
+
+# %%
+# add label_ids as column to dataset
+# corresponding to labels
+label_ids = list()
+for entry in ds_tokenized:
+    labels_as_ids = list()
+    for label in entry["labels"]:
+        labels_as_ids.append(label2id[label])
+    label_ids.append(labels_as_ids)
+ds_tokenized = ds_tokenized.add_column("label_ids", label_ids)
+
+
+# %%
+# padding
+data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer, padding=True)
+ds_tok = ds_tokenized.remove_columns("labels")
+ds_tok = ds_tok.remove_columns("text")
+ds_tok = ds_tok.rename_column("label_ids", "labels")
+batch = data_collator([ds_tok[i] for i in range(len(ds_tok))])
+
+
+# %%
+# metrics
+metric = evaluate.load("seqeval")
+
+# # %%
+# # testing
+# labels = ds_tok[0]["labels"]
+# labels = [id2label[id] for id in labels]
+# labels
+
+# # %%
+# # testing fake predictions
+# pred = labels.copy()
+# pred[2] = "B-chronic_disease"
+# metric.compute(predictions=[pred], references=[labels])
+
+
+def compute_metrics(eval_preds):
+    
