@@ -3,19 +3,16 @@
 
 
 # %%
-import pandas as pd
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer
 from datasets import Dataset
 from transformers import DataCollatorForTokenClassification
 import evaluate
 import numpy as np
 from transformers import TrainingArguments, Trainer, AutoModelForTokenClassification
-import accelerate
 from accelerate import Accelerator
 from torch.utils.data import DataLoader
 from torch.optim import AdamW
 from transformers import get_scheduler
-from huggingface_hub import Repository, get_full_repo_name
 from tqdm.auto import tqdm
 import torch
 
@@ -95,9 +92,6 @@ for index, line in enumerate(data_lines):
             }
         )
 
-# for el in dataset:
-    # print(dataset[el])
-
 
 # %%
 
@@ -170,12 +164,12 @@ dataset_restructured = {
     "labels": labels_list
 }
 
-# %%
-print(dataset_restructured)
 ds = Dataset.from_dict(dataset_restructured)
-
-
-
+# print(ds)
+# print(ds["text"])
+# print(ds["labels"])
+# print(ds[0])
+# print(ds[0]["text"])
 
 # %%
 # model: https://huggingface.co/emilyalsentzer/Bio_ClinicalBERT
@@ -183,22 +177,31 @@ model_checkpoint = "emilyalsentzer/Bio_ClinicalBERT"
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 
-# %%
-ds_tok = tokenizer(ds[0]["text"], is_split_into_words=True)
-print(ds_tok)
-tokens = tokenizer.convert_ids_to_tokens(ds_tok["input_ids"])
-print(tokens)
+# # %%
+# # TEST SAMPLE - HOW DOES THE TOKENIZER WORK?
+# # tokenize dataset with model-tokenizer
+# ds_tok = tokenizer(ds[0]["text"], is_split_into_words=True)
+# print(ds_tok)
+# tokens = tokenizer.convert_ids_to_tokens(ds_tok["input_ids"])
+# print(tokens)
 
 
 # %%
-# align ClinicalBERT tokenization with NER-labels
+# tokenize dataset with model-tokenizer and
+# align (sub-)tokens with NER-labels
 # (subwords, special tokens etc)
 def align_tokens_with_labels(examples):
     tokenized_inputs = tokenizer(examples["text"], truncation=True, is_split_into_words=True)
     
+    # print(examples["labels"])
+    # print(tokenized_inputs.word_ids(batch_index=1))
+    # print(examples["labels"][1])
+    # print(tokenized_inputs["input_ids"][1])
+    # print(tokenizer.convert_ids_to_tokens(tokenized_inputs["input_ids"][1]))
+    
     labels = []
-    for i, label in enumerate(examples[f"labels"]):
-        word_ids = tokenized_inputs.word_ids(batch_index=i)  # Map tokens to their respective word.
+    for index, label in enumerate(examples[f"labels"]):
+        word_ids = tokenized_inputs.word_ids(batch_index=index)  # Map tokens to their respective word.
         previous_word_idx = None
         label_ids = []
         for word_idx in word_ids:  # Set the special tokens to -100.
@@ -221,10 +224,11 @@ ds_tokenized = ds.map(align_tokens_with_labels, batched=True)
 # tokens = tokenizer.convert_ids_to_tokens(ds_tokenized[-1]["input_ids"])
 # print(tokens)
 
-# %%
-print(ds_tokenized[-1]["labels"])
+# # %%
+# print(ds_tokenized[-1]["labels"])
 
-# create set of ner labels used
+# %%
+# create set of used ner labels
 ner_labels = set()
 for entry in ds_tokenized:
     ner_labels = ner_labels.union(set(entry["labels"]))
@@ -248,6 +252,7 @@ def label_id_mapping(ner_labels: set):
 # %%
 id2label, label2id = label_id_mapping(ner_labels)
 
+
 # %%
 # add label_ids as column to dataset
 # corresponding to labels
@@ -261,16 +266,17 @@ ds_tokenized = ds_tokenized.add_column("label_ids", label_ids)
 
 
 # %%
-# padding
+# preparing dataset for training
 data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer, padding=True)
 ds_tok = ds_tokenized.remove_columns("labels")
 ds_tok = ds_tok.remove_columns("text")
 ds_tok = ds_tok.rename_column("label_ids", "labels")
+# padding
 batch = data_collator([ds_tok[i] for i in range(len(ds_tok))])
 
 
 # %%
-# metrics
+# metrics for (in-training) evaluation
 metric = evaluate.load("seqeval")
 
 # # %%
@@ -285,7 +291,7 @@ metric = evaluate.load("seqeval")
 # pred[2] = "B-chronic_disease"
 # metric.compute(predictions=[pred], references=[labels])
 
-
+# %%
 def compute_metrics(eval_preds):
     logits, labels = eval_preds
     predictions = np.argmax(logits, axis=-1)
