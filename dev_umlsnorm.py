@@ -1,8 +1,3 @@
-""" 
-- WHAT ABOUT ICD CODES???? -- SEEM TO BE IN UMLS DICTIONAIRIES 
-"""
-
-
 # %%
 # imports
 import os
@@ -114,7 +109,8 @@ MOCK_UMLS = {
             "hypertension",
             "high blood pressure",
             "arterial hypertension"
-        ]
+        ],
+        "icd10": ["I10"]
     },
     "C0011849": {
         "preferred_name": "Diabetes Mellitus, Type 2",
@@ -123,7 +119,8 @@ MOCK_UMLS = {
             "type 2 diabetes",
             "diabetes mellitus type 2",
             "adult onset diabetes"
-        ]
+        ],
+        "icd10": ["E11"]
     },
     "C0018799": {
         "preferred_name": "Heart Attack",
@@ -132,7 +129,8 @@ MOCK_UMLS = {
             "heart attack",
             "myocardial infarction",
             "acute myocardial infarction"
-        ]
+        ],
+        "icd10": ["TEST1"]
     },
     "C0004057": {
         "preferred_name": "Aspirin",
@@ -141,7 +139,8 @@ MOCK_UMLS = {
             "aspirin",
             "acetylsalicylic acid",
             "asa"
-        ]
+        ],
+        "icd10": ["TEST2"]
     }
 }
 
@@ -274,3 +273,6 @@ if __name__ == "__main__":
             umls_cuis
         )
         print(result)
+        cui = result["cui"]
+        icd_codes = MOCK_UMLS[cui].get("icd10", [])
+        print(f"ICD CODE: {icd_codes}")
