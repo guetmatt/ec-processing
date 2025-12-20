@@ -1,4 +1,7 @@
-# (3) next steps---, pytorch dataset, entity markers, prepare classification task etc
+# (1) entity marker insertion
+# (2) pytorch dataset
+# (3) trainer pipeline
+
 
 # LOAD AND PREPROCESS CHIA DATASET 
 
@@ -227,22 +230,53 @@ txt_file = Path("./data/chia_without_scope/NCT00050349_exc.txt")
 ann_file = Path("./data/chia_without_scope/NCT00050349_exc.ann")
 
 
-dataset = build_dataset_from_dir(data_dir)
+# dataset = build_dataset_from_dir(data_dir)
 
 # %%
-print(f"TOTAL CRITERIA: {len(dataset)}")
-print(json.dumps(dataset[:2], indent=2))
+# print(f"TOTAL CRITERIA: {len(dataset)}")
+# print(json.dumps(dataset[:2], indent=2))
 
-# dataset = build_dataset(
-#     txt_path=txt_file,
-#     ann_path=ann_file,
-#     criterion_type="exclusion"
-# )
+dataset = build_dataset(
+    txt_path=txt_file,
+    ann_path=ann_file)
 
 # %%
 print(dataset[0])
       
 # print(json.dumps(dataset[:2], indent=2))
+
+
+# %%
+# entity marker insertion
+# COMMENTED FROM GEMINI
+# has to be done AFTER building pairwise dataset
+# or within the function of building pairwise dataset 
+def insert_entity_markers(text, e1, e2):
+    """
+    Injects [E1], [/E1], [E2], [/E2] markers into the text string.
+    """
+    # Define insertions: (position, tag, priority)
+    # Priority 2 (Start) > Priority 1 (End) helps when e1 and e2 start at the same position.
+    insertions = [
+        (e1["start"], "[E1]", 2),
+        (e1["end"], "[/E1]", 1),
+        (e2["start"], "[E2]", 2),
+        (e2["end"], "[/E2]", 1)
+    ]
+    
+    # Sort by position (descending), then by priority (ascending) 
+    # This ensures that if we have "word", we get "[E1]word[/E1]" 
+    # and not markers mixed up or inserted in wrong order.
+    insertions.sort(key=lambda x: (x[0], x[2]), reverse=True)
+    
+    marked_text = text
+    for pos, marker, _ in insertions:
+        # Check bounds to avoid errors if spans are messy
+        pos = max(0, min(len(marked_text), pos))
+        marked_text = marked_text[:pos] + marker + marked_text[pos:]
+        
+    return marked_text
+
 
 # %%
 # build pairwise RE dataset
@@ -291,10 +325,14 @@ def build_pairwise_re_dataset(
                 (e1["id"], e2["id"]),
                 no_relation_label
             )
+            
+            # entity marker insertion
+            marked_text = insert_entity_markers(text, e1, e2)
 
             pairwise_samples.append({
                 "criterion_id": criterion_id,
                 "text": text,
+                "marked_text": marked_text,
                 "e1": {
                     "id": e1["id"],
                     "type": e1["type"],
@@ -322,3 +360,7 @@ pairwise_relations = build_pairwise_re_dataset(dataset)
 # %%
 for rel in pairwise_relations:
     print(rel)
+    
+print(len(pairwise_relations))
+
+
