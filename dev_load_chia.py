@@ -1,16 +1,18 @@
-# (1) entity marker insertion
-# (2) pytorch dataset
+# (1) entity marker insertion -- DONE
+# (2) pytorch dataset -- DONE?
 # (3) trainer pipeline
 
+# DOES THIS CODE ALSO WORK WITH WHOLE DATASET DIRECTORY?
 
 # LOAD AND PREPROCESS CHIA DATASET 
 
 # %%
 # imports
 from pathlib import Path
-import json
 from itertools import permutations
-from tqdm import tqdm
+from datasets import Dataset
+from datasets import load_from_disk, DatasetDict
+import os
 
 
 
@@ -234,8 +236,6 @@ ann_file = Path("./data/chia_without_scope/NCT00050349_exc.ann")
 
 # %%
 # print(f"TOTAL CRITERIA: {len(dataset)}")
-# print(json.dumps(dataset[:2], indent=2))
-
 dataset = build_dataset(
     txt_path=txt_file,
     ann_path=ann_file)
@@ -243,7 +243,7 @@ dataset = build_dataset(
 # %%
 print(dataset[0])
       
-# print(json.dumps(dataset[:2], indent=2))
+
 
 
 # %%
@@ -360,7 +360,139 @@ pairwise_relations = build_pairwise_re_dataset(dataset)
 # %%
 for rel in pairwise_relations:
     print(rel)
-    
+
+# %%    
 print(len(pairwise_relations))
 
 
+
+# %%
+# save preprocessed dataset to disk
+# MAYBE SPLIT INTO TRAIN, TEST, VAL WHEN SAVING??
+def save_dataset(data_list, save_dir):
+    """
+    Saves the entire dataset to disk without splitting.
+    """
+    
+    # convert list of dicts to Huggingface Dataset
+    full_dataset = Dataset.from_list(data_list)
+    
+    # Save to disk
+    os.makedirs(save_dir, exist_ok=True)
+    full_dataset.save_to_disk(save_dir)
+    
+    print(f"Dataset saved to '{save_dir}'")
+    
+    return None
+
+
+
+# %%
+# load huggingface dataset    
+def load_dataset(load_dir: str):
+    """
+    Loads a Huggingface Dataset from disk.
+    
+    Args:
+    - load_dir (str): Path to the saved dataset directory
+    
+    Returns:
+    - Dataset
+    """
+    
+    try:
+        dataset = load_from_disk(load_dir)
+        print(f"Loaded datset from '{load_dir}' with {len(dataset)} samples.")
+        return dataset
+    except FileNotFoundError:
+        print(f"Error: No dataset found at '{load_dir}'")
+        return None
+    
+
+# %%
+# split huggingface dataset to train/test/val
+def split_dataset(dataset,
+                  test_size=0.1,
+                  val_size=0.1,
+                  seed=42):
+    """
+    Splits a Huggingface Dataset into train, validation, test splits.
+    
+    Args:
+        full_dataset (Dataset): The dataset object to split.
+        test_size (float): Absolute fraction for Test set (e.g., 0.1 for 10%).
+        val_size (float): Absolute fraction for Validation set (e.g., 0.1 for 10%).
+        seed (int): Random seed for reproducibility.
+        
+    Returns:
+        DatasetDict: A dictionary containing 'train', 'validation', and 'test'.
+    """
+    
+    # calculate size of temporary holdout set (test+val)
+    holdout_total_size = test_size + val_size
+    
+    # split train from holdout
+    try:
+        split_1 = dataset.train_test_split(
+            test_size=holdout_total_size,
+            seed=seed,
+            stratify_by_column="label"
+        )
+    except ValueError:
+        print("Warning: Stratification failed (classes likely too small). Splitting randomly.")
+        split_1 = dataset.train_test_split(
+            test_size=holdout_total_size,
+            seed=seed
+        )
+        
+    ds_train = split_1["train"]
+    ds_holdout = split_1["test"]
+    
+    # split val from test
+    relative_test_size = test_size/holdout_total_size
+    
+    split_2 = ds_holdout.train_test_split(
+        test_size=relative_test_size,
+        seed=seed
+    )
+    
+    ds_val = split_2["train"]
+    ds_test = split_2["test"]
+    
+    # return organized dataset
+    ds_new = DatasetDict({
+        "train": ds_train,
+        "test": ds_test,
+        "validation": ds_val
+    })
+    
+    return ds_new
+
+
+
+# %%
+SAVE_PATH = "./data/chia_parsed_v1"
+#%%
+save_dataset(pairwise_relations, SAVE_PATH)
+
+
+
+# %%
+dataset = load_dataset("./data/chia_parsed_v1")
+
+# %%
+ds_split = split_dataset(
+    dataset,
+    test_size=0.1,
+    val_size=0.1,
+    seed=42
+)
+
+# %%
+set(ds_split["train"]["label"])
+
+#%%
+print("\nSplit Sizes:")
+print(f"Train: {len(ds_split['train'])}")
+print(f"Val:   {len(ds_split['validation'])}")
+print(f"Test:  {len(ds_split['test'])}")
