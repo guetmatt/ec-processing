@@ -3,8 +3,7 @@
 # BERT-based re with chia-dataset
 # MAYBE then gen-ai on top for logical composition/json generation or similar
 
-# (1) LABEL ENCODING
-# (2) TOKENIZATIONM
+# WHAT ABOUT [CLS] TOKENS IN TOKENIZATION???
 
 
 # %%
@@ -151,9 +150,6 @@ def main():
 
 # %%
 dataset = load_from_disk(INPUT_DIR)
-
-# %%
-# DATASET muss noch in train/test(/val) gesplittet werden
 
 
 
