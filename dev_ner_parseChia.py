@@ -1,18 +1,12 @@
 # TO DO
 # - parse complete dataset
 # - look at labels used in chia annotation -- decide if some should be merged or removed
+# - develop NER training/evaluation pipeline
 
-# - then go on to develop NER training/evaluation pipeline
+# Current format of processed eligibility criterion:
+# ['[CLS]', 'patients', 'with', 's', '##ym', '##pt', '##oma', '##tic', 'c', '##ns', 'meta', '##sta', '##ses', 'or', 'le', '##pt', '##ome', '##ning', '##eal', 'involvement', 'patients', 'with', 'known', 'brain', 'meta', '##sta', '##ses', ',', 'unless', 'these', 'meta', '##sta', '##ses', 'have', 'been', 'treated', 'and', '/', 'or', 'have', 'been', 'stable', 'for', 'at', 'least', 'six', 'months', 'prior', 'to', 'study', 'start', '.', 'subjects', 'with', 'a', 'history', 'of', 'brain', 'meta', '##sta', '##ses', 'must', 'have', 'a', 'head', 'c', '##t', 'with', 'contrast', 'to', 'document', 'either', 'response', 'or', 'progression', '.', 'patients', 'with', 'bone', 'meta', '##sta', '##ses', 'as', 'the', 'only', 'site', '(', 's', ')', 'of', 'me', '##as', '##urable', 'disease', 'patients', 'with', 'he', '##pa', '##tic', 'artery', 'ch', '##em', '##oe', '##mbo', '##li', '##zation', 'within', 'the', 'last', '6', 'months', '(', 'one', 'month', 'if', 'there', 'are', 'other', 'sites', 'of', 'me', '##as', '##urable', 'disease', ')', 'patients', 'who', 'have', 'been', 'previously', 'treated', 'with', 'radioactive', 'directed', 'the', '##rap', '##ies', 'patients', 'who', 'have', 'been', 'previously', 'treated', 'with', 'e', '##pot', '##hil', '##one', 'patients', 'with', 'any', 'peripheral', 'ne', '##uro', '##pathy', 'or', 'un', '##res', '##ol', '##ved', 'di', '##ar', '##r', '##hea', 'greater', 'than', 'grade', '1', 'patients', 'with', 'severe', 'cardiac', 'ins', '##uff', '##iciency', 'patients', 'taking', 'co', '##uma', '##din', 'or', 'other', 'war', '##fari', '##n', '-', 'containing', 'agents', 'with', 'the', 'exception', 'of', 'low', 'dose', 'war', '##fari', '##n', '(', '1', 'mg', 'or', 'less', ')', 'for', 'the', 'maintenance', 'of', 'in', '-', 'dwelling', 'lines', 'or', 'ports', 'patients', 'taking', 'any', 'experimental', 'the', '##rap', '##ies', 'history', 'of', 'another', 'ma', '##li', '##gna', '##ncy', 'within', '5', 'years', 'prior', 'to', 'study', 'entry', 'except', 'cu', '##rative', '##ly', 'treated', 'non', '-', 'me', '##lan', '##oma', 'skin', 'cancer', ',', 'pro', '##state', 'cancer', ',', 'or', 'c', '##er', '##vic', '##al', 'cancer', 'in', 'sit', '##u', 'patients', 'with', 'active', 'or', 'suspected', 'acute', 'or', 'chronic', 'un', '##con', '##tro', '##lled', 'infection', 'including', 'a', '##b', '##cess', '##es', 'or', 'fist', '##ula', '##e', 'patients', 'with', 'a', 'medical', 'or', 'psychiatric', 'illness', 'that', 'would', 'pre', '##c', '##lude', 'study', 'or', 'informed', 'consent', 'and', '/', 'or', 'history', 'of', 'non', '##com', '##p', '##liance', 'to', 'medical', 'regime', '##ns', 'or', 'inability', 'or', 'unwilling', '##ness', 'to', 'return', 'for', 'all', 'scheduled', 'visits', 'hi', '##v', '+', 'patients', 'pregnant', 'or', 'la', '##ct', '##ating', 'females', '.', '[SEP]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]']
+# - do I want to process sentence-wise or field-wise?
 
-"""
-
-
-Current format of processed eligibility criterion:
-['[CLS]', 'patients', 'with', 's', '##ym', '##pt', '##oma', '##tic', 'c', '##ns', 'meta', '##sta', '##ses', 'or', 'le', '##pt', '##ome', '##ning', '##eal', 'involvement', 'patients', 'with', 'known', 'brain', 'meta', '##sta', '##ses', ',', 'unless', 'these', 'meta', '##sta', '##ses', 'have', 'been', 'treated', 'and', '/', 'or', 'have', 'been', 'stable', 'for', 'at', 'least', 'six', 'months', 'prior', 'to', 'study', 'start', '.', 'subjects', 'with', 'a', 'history', 'of', 'brain', 'meta', '##sta', '##ses', 'must', 'have', 'a', 'head', 'c', '##t', 'with', 'contrast', 'to', 'document', 'either', 'response', 'or', 'progression', '.', 'patients', 'with', 'bone', 'meta', '##sta', '##ses', 'as', 'the', 'only', 'site', '(', 's', ')', 'of', 'me', '##as', '##urable', 'disease', 'patients', 'with', 'he', '##pa', '##tic', 'artery', 'ch', '##em', '##oe', '##mbo', '##li', '##zation', 'within', 'the', 'last', '6', 'months', '(', 'one', 'month', 'if', 'there', 'are', 'other', 'sites', 'of', 'me', '##as', '##urable', 'disease', ')', 'patients', 'who', 'have', 'been', 'previously', 'treated', 'with', 'radioactive', 'directed', 'the', '##rap', '##ies', 'patients', 'who', 'have', 'been', 'previously', 'treated', 'with', 'e', '##pot', '##hil', '##one', 'patients', 'with', 'any', 'peripheral', 'ne', '##uro', '##pathy', 'or', 'un', '##res', '##ol', '##ved', 'di', '##ar', '##r', '##hea', 'greater', 'than', 'grade', '1', 'patients', 'with', 'severe', 'cardiac', 'ins', '##uff', '##iciency', 'patients', 'taking', 'co', '##uma', '##din', 'or', 'other', 'war', '##fari', '##n', '-', 'containing', 'agents', 'with', 'the', 'exception', 'of', 'low', 'dose', 'war', '##fari', '##n', '(', '1', 'mg', 'or', 'less', ')', 'for', 'the', 'maintenance', 'of', 'in', '-', 'dwelling', 'lines', 'or', 'ports', 'patients', 'taking', 'any', 'experimental', 'the', '##rap', '##ies', 'history', 'of', 'another', 'ma', '##li', '##gna', '##ncy', 'within', '5', 'years', 'prior', 'to', 'study', 'entry', 'except', 'cu', '##rative', '##ly', 'treated', 'non', '-', 'me', '##lan', '##oma', 'skin', 'cancer', ',', 'pro', '##state', 'cancer', ',', 'or', 'c', '##er', '##vic', '##al', 'cancer', 'in', 'sit', '##u', 'patients', 'with', 'active', 'or', 'suspected', 'acute', 'or', 'chronic', 'un', '##con', '##tro', '##lled', 'infection', 'including', 'a', '##b', '##cess', '##es', 'or', 'fist', '##ula', '##e', 'patients', 'with', 'a', 'medical', 'or', 'psychiatric', 'illness', 'that', 'would', 'pre', '##c', '##lude', 'study', 'or', 'informed', 'consent', 'and', '/', 'or', 'history', 'of', 'non', '##com', '##p', '##liance', 'to', 'medical', 'regime', '##ns', 'or', 'inability', 'or', 'unwilling', '##ness', 'to', 'return', 'for', 'all', 'scheduled', 'visits', 'hi', '##v', '+', 'patients', 'pregnant', 'or', 'la', '##ct', '##ating', 'females', '.', '[SEP]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]', '[PAD]']
-
-- do I want to process sentence-wise or field-wise?
-- test to correct annotations
-"""
 
 
 # PARSING THE CHIA DATASET FOR NER TASKS
@@ -20,10 +14,11 @@ Current format of processed eligibility criterion:
 # %%
 # imports
 import os
+import json
 import glob
 import re
 import pandas as pd
-from datasets import Dataset, ClassLabel, load_from_disk
+from datasets import Dataset, ClassLabel, DatasetDict
 from transformers import AutoTokenizer
 
 
@@ -244,6 +239,60 @@ def load_chia_dataset(data_dir, model_checkpoint):
 
 
 
+def save_label_map(label2id, id2label, output_dir, filename="label_map.json"):
+    """
+    Saves label mappings to a JSON file.
+    
+    Args:
+        label2id (dict): Mapping from label name (str) to id (int)
+        id2label (dict): Mapping from id (int) to label name (str)
+        output_dir (str): Directory where the file should be saved
+        filename (str): Name of the output file
+    """
+    
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir, exist_ok=True)
+        
+    path = os.path.join(output_dir, filename)
+    
+    data = {
+        "label2id": label2id,
+        "id2label": id2label
+    }
+    
+    try:
+        with open(path, "w", encoding="UTF-8") as f:
+            json.dump(data, f, indent=4)
+        print(f"Label mappings saved to {path}")
+    except Exception as e:
+        print(f"Failed to save label mappings: {e}")
+    
+    return None
+
+
+
+# def load_label_map(input_dir, filename="label_map.json"):
+#     """
+#     Helper function to load label mappings.
+
+#     Args:
+#         input_dir (str): path of directory with label mapping file
+#         filename (str): name of the label mapping file
+#     """
+    
+#     path = os.path.join(input_dir, filename)
+    
+#     with open(path, "r", encoding="UTF-8") as f:
+#         data = json.load(f)
+    
+#     label2id = data["label2id"]
+#     # convert keys to int (json saves keys as strings)
+#     id2label = {int(k): v for k, v in data["id2label"].items()}
+    
+#     return label2id, id2label
+    
+    
+        
 def save_dataset_to_disk(dataset, output_dir):
     """
     Saves a HuggingFace dataset to a specified directory.
@@ -256,29 +305,83 @@ def save_dataset_to_disk(dataset, output_dir):
     print(f"Saving dataset to {output_dir}...")
     os.makedirs(output_dir, exist_ok=True)
     dataset.save_to_disk(output_dir)
-    print(f"Dataset saved to {output_dir}.")
+    print(f"Dataset saved to {output_dir}")
     
     return None    
 
 
-def load_dataset_from_disk(input_dir):
+
+# stratify by label instead of criteria type????
+def split_and_save_dataset(dataset, output_dir, seed=42):
     """
-    Loads a saved HuggingFace dataset from disk.
+    Splits the dataset into train (80%), validation (10%), and test (10%).
+    Saves splitted data to disk as a DatasetDict.
     
-    Args:
-        input_dir (str): the directory path where the dataset is saved
+    ...
+    """
+    
+    # the dataset-library currently does not directly support a three-way split
+    # thereofe, splitting has to be done in two steps
+    
+    # first split - test set
+    # stratify by criteria_type (balance inc/excl samples)
+    if "criteria_type" in dataset.features:
+        print("Splitting dataset with stratification by 'criteria_type'...")
+        split_1 = dataset.train_test_split(test_size=0.1, stratify_by_column="criteria_type", seed=seed)
+    else:
+        split_1 = dataset.train_test_split(test_size=0.1, seed=seed)
+    
+    test_dataset = split_1["test"]
+    remaining_dataset = split_1["train"]
+    
+    # second split - validation + train set
+    # val should be 10% of total -> approx. 1/9th of remaining 90%
+    if "criteria_type" in dataset.features:
+        split_2 = remaining_dataset.train_test_split(test_size=0.111, stratify_by_column="criteria_type", seed=seed)
+    else:
+        split_2 = remaining_dataset.train_test_split(test_size=0.111, seed=seed)
+    
+    train_dataset = split_2["train"]
+    val_dataset = split_2["test"]
+    
+    final_dataset = DatasetDict({
+        "train": train_dataset,
+        "validation": val_dataset,
+        "test": test_dataset
+    })
+    
+    # save splitted dataset to disk
+    print(f"Saving splitted dataset to {output_dir}...")
+    print(f"\tTrain: {len(train_dataset)} samples")
+    print(f"\tValidation: {len(val_dataset)} samples")
+    print(f"\tTest: {len(test_dataset)} samples")
+    
+    final_dataset.save_to_disk(output_dir)
+    print(f"Save completed.")
+    
+    return None
+    
+    
+
+
+# def load_dataset_from_disk(input_dir):
+#     """
+#     Loads a saved HuggingFace dataset from disk.
+    
+#     Args:
+#         input_dir (str): the directory path where the dataset is saved
         
-    Returns:
-        dataset (HuggingFace dataset): loaded dataset object
-    """
+#     Returns:
+#         dataset (HuggingFace dataset): loaded dataset object
+#     """
     
-    try:
-        dataset = load_from_disk(input_dir)
-        print(f"Loaded dataset from '{input_dir}' with {len(dataset)} samples.")
-        return dataset
-    except FileNotFoundError:
-        print(f"Error: No dataset found at '{input_dir}'")
-        return None
+#     try:
+#         dataset = load_from_disk(input_dir)
+#         print(f"Loaded dataset from '{input_dir}' with {len(dataset)} samples.")
+#         return dataset
+#     except FileNotFoundError:
+#         print(f"Error: No dataset found at '{input_dir}'")
+#         return None
 
     
     
@@ -324,17 +427,24 @@ if __name__ == "__main__":
     # %%
     # save dataset to disk
     OUTPUT_DIR = "./data/chia_without_scope_parsedNER_v1"
-    save_dataset_to_disk(dataset, OUTPUT_DIR)
+    if len (dataset) > 0:
+        split_and_save_dataset(dataset, OUTPUT_DIR)
+        save_label_map(label2id, id2label, OUTPUT_DIR)
     
+    
+    
+    # save_dataset_to_disk(dataset, OUTPUT_DIR)
+    # save_label_map(label2id, id2label, OUTPUT_DIR)
     
     # %%
     # load dataset test
-    data = load_dataset_from_disk(OUTPUT_DIR)
-    if data:
-        print(f"\nVerification Successful:")
-        print(f"Samples: {len(data)}")
-        # Check features to ensure metadata (criteria_type) was preserved
-        print(f"Features: {data.features}")
+    # data = load_dataset_from_disk(OUTPUT_DIR)
+    # label2id_loaded, id2label_loaded = load_label_map(OUTPUT_DIR)
+    # if data:
+    #     print(f"\nVerification Successful:")
+    #     print(f"Samples: {len(data)}")
+    #     # Check features to ensure metadata (criteria_type) was preserved
+    #     print(f"Features: {data.features}")
     
     
     # %%
@@ -344,7 +454,7 @@ if __name__ == "__main__":
     print(tokens)
     
     # %%
-    label_ids = data[0]["labels"]
+    label_ids = dataset[0]["labels"]
     label_names = list()
     for id in label_ids:
         label_names.append(id2label[id])
