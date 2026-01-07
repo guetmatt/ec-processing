@@ -176,8 +176,8 @@ def main():
     
 
     # %%
-    # 3. Model Initialization
-    # We load ClinicalBERT and resize the classification head to match our number of labels
+    # model initialization
+    # resize classification head to match number of labels
     print("Initializing Model...")
     model = AutoModelForTokenClassification.from_pretrained(
         MODEL_CHECKPOINT,
@@ -188,16 +188,16 @@ def main():
     
     
     # %%
-    # 4. Data Collator
-    # This automatically pads the inputs to the maximum length in the batch
-    # (more efficient than padding everything to 512).
+    # data collator
+    # automatically pads the inputs to the maximum length in the batch
+    # (more efficient than padding everything to 512)
     # tokenizer for the data collator (to know how to pad)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)
     data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
     
     
     # %%
-    # 5. Training Arguments
+    # training arguments
     args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         eval_strategy="epoch",
@@ -216,7 +216,7 @@ def main():
     
     
     # %%
-    # 6. Initialize Trainer
+    # initialize trainer
     trainer = Trainer(
         model=model,
         args=args,
@@ -229,13 +229,13 @@ def main():
     
     
     # %%
-    # 7. Start Training
+    # start training
     print("Starting training...")
     trainer.train()
     
     
     # %%
-    # 8. Final Evaluation
+    # final evaluation
     # on test dataset
     print("Evaluating final model...")
     metrics = trainer.evaluate(test_dataset)
@@ -243,8 +243,7 @@ def main():
     print(metrics)
     
     # %%
-    # 9. Save the Final Model
-    # This saves the model + tokenizer so you can load it easily for the RE module
+    # saves model + tokenizer
     final_save_path = os.path.join(OUTPUT_DIR, "ner_chia_test")
     trainer.save_model(final_save_path)
     print(f"Model saved to {final_save_path}")
