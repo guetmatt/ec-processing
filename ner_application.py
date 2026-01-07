@@ -39,3 +39,9 @@ ner_classifier = pipeline("ner", model=model_checkpoint, aggregation_strategy="s
 test = ner_classifier(data_processed[2])
 # %%
 print(test)
+
+
+[{'entity_group': 'chronic_disease', 'score': np.float32(0.91516864), 'word': 'ne', 'start': 51, 'end': 53},
+ {'entity_group': 'chronic_disease', 'score': np.float32(0.8211982), 'word': '##uro', 'start': 53, 'end': 56},
+ {'entity_group': 'chronic_disease', 'score': np.float32(0.8623047), 'word': 'psychiatric', 'start': 66, 'end': 77},
+ {'entity_group': 'chronic_disease', 'score': np.float32(0.74425787), 'word': 'metabolic', 'start': 83, 'end': 92}]
