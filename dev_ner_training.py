@@ -1,3 +1,14 @@
+# TO DECIDE
+# - compute_metrics_tok or compute_metrics_seq ???
+# - how many epochs? how to find the best hyperparameters?
+# - converge some labels into one another! -- labeling scheme
+# - handle this warning during training loop:
+#    /usr/local/lib/python3.12/dist-packages/sklearn/metrics/_classification.py:1565:
+#       UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples.
+#       Use `zero_division` parameter to control this behavior.
+#   _warn_prf(average, modifier, f"{metric.capitalize()} is", len(result))
+
+
 # %%
 # imports
 import os
@@ -8,7 +19,6 @@ from datasets import load_from_disk
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers import DataCollatorForTokenClassification, AutoTokenizer
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, classification_report
-
 
 
 # %%
@@ -130,19 +140,6 @@ def compute_metrics_tok(p):
     return results_overall
 
 
-# %%
-# configuration
-DATA_PATH = "./data/chia_without_scope_parsedNER_v1"
-MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
-OUTPUT_DIR = "./models/ner_test"
-
-# %%
-# hyperparameters
-BATCH_SIZE = 16
-LEARNING_RATE = 2e-5
-NUM_EPOCHS = 4
-WEIGHT_DECAY = 0.01
-
 
 
 # %%
@@ -211,7 +208,11 @@ def main():
         metric_for_best_model="f1",
         logging_dir=f"{OUTPUT_DIR}/logs",
         logging_steps=50,
-        save_total_limit=2
+        save_total_limit=2,
+        # colab-specific settings
+        fp16 = True, # enhances training speed on gpu
+        report_to="none", # disables WandB prompts
+        dataloader_num_workers=2, # speeds up data loading
     )
     
     
@@ -224,7 +225,7 @@ def main():
         eval_dataset=eval_dataset,
         tokenizer=tokenizer,
         data_collator=data_collator,
-        compute_metrics=compute_metrics_seq,
+        compute_metrics=compute_metrics_tok,
     )
     
     
@@ -244,12 +245,35 @@ def main():
     
     # %%
     # saves model + tokenizer
-    final_save_path = os.path.join(OUTPUT_DIR, "ner_chia_test")
-    trainer.save_model(final_save_path)
-    print(f"Model saved to {final_save_path}")
+    trainer.save_model(OUTPUT_DIR)
+    tokenizer.save_pretrained(OUTPUT_DIR)
+    print(f"Model saved to {OUTPUT_DIR}")
     
 
 # %%
 # boilerplate
 if __name__ == "__main__":
+    
+    # %%
+    # local paths
+    # DATA_PATH = "./data/chia_without_scope_parsedNER_lines_v1"
+    # MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+    # OUTPUT_DIR = "./models"
+
+    # %%
+    # paths for google colab
+    BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
+    DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedNER_lines_v1")
+    print(f"DATA_PATH = {DATA_PATH}")
+    OUTPUT_DIR = os.path.join(BASE_PATH, "models/ner_chia_test2")
+    MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+
+    # %%
+    # hyperparameters
+    BATCH_SIZE = 16
+    LEARNING_RATE = 2e-5
+    NUM_EPOCHS = 10
+    WEIGHT_DECAY = 0.01
+    
     main()
+    
