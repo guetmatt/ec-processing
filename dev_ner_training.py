@@ -256,16 +256,16 @@ if __name__ == "__main__":
     
     # %%
     # local paths
-    # DATA_PATH = "./data/chia_without_scope_parsedNER_lines_v1"
+    # DATA_PATH = "./data/chia_without_scope_parsedNER_lines_full_100126"
     # MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
-    # OUTPUT_DIR = "./models"
+    # OUTPUT_DIR = "./models/NER_chia_lines_full_10026"
 
     # %%
     # paths for google colab
     BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
-    DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedNER_lines_v1")
+    DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedNER_lines_full_100126")
     print(f"DATA_PATH = {DATA_PATH}")
-    OUTPUT_DIR = os.path.join(BASE_PATH, "models/ner_chia_test2")
+    OUTPUT_DIR = os.path.join(BASE_PATH, "models/NER_chia_lines_full_100126")
     MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
     # %%
@@ -275,5 +275,6 @@ if __name__ == "__main__":
     NUM_EPOCHS = 10
     WEIGHT_DECAY = 0.01
     
+    # %%
     main()
     

@@ -526,7 +526,7 @@ def split_and_save_dataset(dataset, output_dir, seed=42):
 if __name__ == "__main__":
     
     DATA_DIR = "./data/chia_without_scope"
-    OUTPUT_DIR = "./data/chia_without_scope_parsedNER_lines_v1_ITERATIVETEST"
+    OUTPUT_DIR = "./data/chia_without_scope_parsedNER_lines_full_100126"
     MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
     
     # %%
