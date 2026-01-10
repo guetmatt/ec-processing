@@ -122,8 +122,9 @@ def extract_entities(text, ner_pipeline):
 if __name__ == "__main__":
     
     DATA_DIR = "./data_by_lea/data_parsed_sentLevel/ctg_sentLevel.csv"
-    OUTPUT_FILE = "./results/ner_dev/dev_ner_results.csv"
-    MODEL_CHECKPOINT = "./models/ner_test/checkpoint-8"
+    # OUTPUT_FILE = "./results/ner_dev/dev_ner_results.csv"
+    OUTPUT_FILE = "./results/ner_dev/dev_ner_results.jsonl"
+    MODEL_CHECKPOINT = "./models/ner_chia_test2"
     
 
     # %%
@@ -143,14 +144,40 @@ if __name__ == "__main__":
     # %%
     # run NER pipeline on dataset
     print("Running NER inference on all sentences...")
-    # Note: for very large datasets, consider batching with pipeline(..., batch_size=N)
-    entities_column = [
-        json.dumps(extract_entities(text, ner_pipeline)) 
-        for text in df['Sentence']
-    ]
+    
+    # JSONL-file generation
+    results = list()
+    for idx, row in df.iterrows():
+        text = row["Sentence"]
+        entities = extract_entities(text, ner_pipeline)
+        # dict for jsonl-storage
+        entry = {
+            "sentence_id": idx,
+            "text": text,
+            "entities": entities,
+            "nct_id": row["StudyNCTid"],
+            "criteria_type": row["criteria_type"]
+        }
+        results.append(entry)
     
     # %%
-    # assign result and save
-    df['Entities'] = entities_column
-    df.to_csv(OUTPUT_FILE, index=False)
-    print(f"Inference complete. Results saved to {OUTPUT_FILE}")
+    # save jsonl-format
+    with open(OUTPUT_FILE, "w", encoding="UTF-8") as f:
+        for entry in results:
+            json.dump(entry, f)
+            f.write("\n")
+    print(f"Results saved to {OUTPUT_FILE}")
+    
+    
+    
+    # # CSV-FILE GENERATION
+    # entities_column = [
+    #     json.dumps(extract_entities(text, ner_pipeline)) 
+    #     for text in df['Sentence']
+    # ]
+    
+    # # %%
+    # # assign result and save
+    # df['Entities'] = entities_column
+    # df.to_csv(OUTPUT_FILE, index=False)
+    # print(f"Inference complete. Results saved to {OUTPUT_FILE}")
