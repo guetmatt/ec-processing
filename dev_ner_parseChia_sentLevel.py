@@ -16,8 +16,10 @@ import glob
 import re
 import json
 import pandas as pd
+import numpy as np
 from datasets import Dataset, DatasetDict, ClassLabel
 from transformers import AutoTokenizer
+from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
 
 # %%
@@ -351,7 +353,110 @@ def save_label_map(label2id, id2label, output_dir, filename="label_map.json"):
 
 
 
-# stratify by label instead of criteria type????
+
+def get_entity_presence_matric(dataset, label_column="labels"):
+    """
+    Converts a dataset of NER sequences into a binary presence matrix 
+    for iterative stratification.
+    
+    Args:
+        dataset: HuggingFace dataset
+        label_column: Name of the column containing NER-label ids
+        
+    Returns:
+        np.array: A binary matrix of shape (n_samples, n_entity_types)
+                  where 1 indicates the entity type is present in the sentence.
+    """
+    
+    # identify unique labels in dataset
+    # excluding "O" (non-entity label)
+    all_labels = list()
+    for sent_labels in dataset["labels"]:
+        all_labels.extend(sent_labels)
+    unique_labels = set(all_labels)
+    unique_labels.remove(0)
+    
+    # map label-ids to matrix columns
+    label_to_idx = {label: i for i, label in enumerate(unique_labels)}
+    
+    # build matrix
+    # rows = n sentences
+    # columns = n entity types (labels)
+    y_matrix = np.zeros((len(dataset), len(unique_labels)))
+    for row_idx, labels in enumerate(dataset[label_column]):
+        sent_labels = set(label for label in labels if label != 0)
+        for label in sent_labels:
+            if label in label_to_idx:
+                col_idx = label_to_idx[label]
+                y_matrix[row_idx, col_idx] = 1
+    
+    return y_matrix
+    
+
+
+# ITERATIVE STRATIFICATION BY LABELS
+def split_and_save_dataset_iterative(dataset, output_dir, seed=42, label_column="labels"):
+    """
+    Splits the dataset into Train, Validation, and Test sets and saves them to disk.
+    Applies iterative stratification on labels for label-balance in all splits. 
+    
+    Args:
+        dataset (Dataset): The full processed dataset.
+        output_dir (str): Directory path to save the dataset.
+        seed (int): Random seed for reproducibility.
+        label_column (str): name of column containing labels
+        
+    Returns:
+        final_dataset (Dataset): HuggingFace dataset, splitted and stratified
+    """
+
+    # multi-hot-matrix for iterative stratification
+    y_matrix = get_entity_presence_matric(dataset, label_column=label_column)
+    
+    # sklearn api expects (X, y) format
+    # -> dummy X-array
+    X = np.zeros(len(dataset))
+    
+    # split 1 - test set (10%)
+    msss_test = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=seed)
+    # msss.split returns indices
+    # -> only need first split
+    train_val_idx, test_idx = next(msss_test.split(X, y_matrix))
+    
+    test_dataset = dataset.select(test_idx)
+    remaining_dataset = dataset.select(train_val_idx)
+    
+    # slice y_matrix to match remaining dataset
+    # for second split
+    y_remaining = y_matrix[train_val_idx]
+    X_remaining = X[train_val_idx]
+    
+    # split 2 - validation set (10%, approx. 1/9 of remaining dataset)
+    msss_val = MultilabelStratifiedShuffleSplit(n_splits=1, test_size=0.111, random_state=seed)
+    train_idx, val_idx = next(msss_val.split(X_remaining, y_remaining))
+    
+    train_dataset = remaining_dataset.select(train_idx)
+    val_dataset = remaining_dataset.select(val_idx)
+    
+    # combine into DatasetDict
+    final_dataset = DatasetDict({
+        "train": train_dataset,
+        "validation": val_dataset,
+        "test": test_dataset
+    })
+    
+    # save to disk
+    print(f"Saving iteratively stratified dataset to {output_dir}...")
+    print(f"\tTrain: {len(train_dataset)} samples")
+    print(f"\tValidation: {len(val_dataset)} samples")
+    print(f"\tTest: {len(test_dataset)} samples")
+    final_dataset.save_to_disk(output_dir)
+    print("Save complete.")   
+    
+    return final_dataset
+
+
+# SIMPLE STRATIFICATION BY CRITERIA TYPE
 def split_and_save_dataset(dataset, output_dir, seed=42):
     """
     Splits the dataset into Train, Validation, and Test sets and saves them to disk.
@@ -421,7 +526,7 @@ def split_and_save_dataset(dataset, output_dir, seed=42):
 if __name__ == "__main__":
     
     DATA_DIR = "./data/chia_without_scope"
-    OUTPUT_DIR = "./data/chia_without_scope_parsedNER_lines_v1"
+    OUTPUT_DIR = "./data/chia_without_scope_parsedNER_lines_v1_ITERATIVETEST"
     MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
     
     # %%
@@ -431,16 +536,24 @@ if __name__ == "__main__":
         # load & process chia dataset
         dataset, label2id, id2label = load_chia_dataset(DATA_DIR, MODEL_CHECKPOINT)
         
+        # simple stratification by criteria_type
+        # # split & save processed dataset
+        # if len(dataset) > 0:
+        #     split_and_save_dataset(dataset, OUTPUT_DIR)
+        #     save_label_map(label2id, id2label, OUTPUT_DIR)
+        #     print("\n--- Pipeline Complete ---")
+        #     print(f"Dataset saved to: {OUTPUT_DIR}")
+        #     print(f"Number of distinct NER labels: {len(label2id)}")
+
+        # iterative stratification by label
         # split & save processed dataset
         if len(dataset) > 0:
-            split_and_save_dataset(dataset, OUTPUT_DIR)
+            split_and_save_dataset_iterative(dataset, OUTPUT_DIR)
             save_label_map(label2id, id2label, OUTPUT_DIR)
             print("\n--- Pipeline Complete ---")
             print(f"Dataset saved to: {OUTPUT_DIR}")
             print(f"Number of distinct NER labels: {len(label2id)}")
- 
- 
- 
+    
     # %%
     # example = dataset[150]
     # print(f"input ids: {example["input_ids"]}")
