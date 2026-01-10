@@ -5,13 +5,11 @@
 
 
 # TO DO
-# - store NER results as file
 # - load NER result-files for RE
 # - store RE results as file
 # - work on RE trainng
 # - work on NER training
  
-
 
 # %%
 # imports
