@@ -1,7 +1,3 @@
-# TO DO
-# - parse whole dataset
-
-
 
 # %%
 # imports
@@ -196,7 +192,7 @@ def process_files(data_dir):
 
 
 
-def split_and_save_dataset(dataset, output_dir, seed=42):
+def split_and_save_dataset(dataset, relation_types, output_dir, seed=42):
     """
     Splits the generated training dataset into train, eval and test.
     Applies stratification on the 'label' column to handle class imbalance.
@@ -232,19 +228,29 @@ def split_and_save_dataset(dataset, output_dir, seed=42):
     final_dataset.save_to_disk(output_dir)
     print("Save complete.")
     
+    # create and save label mappings
+    label2id = {l: i for i, l in enumerate(relation_types)}
+    id2label = {i: l for l, i in label2id.items()}
+    map_path = os.path.join(output_dir, "label_map.json")
+    with open(map_path, "w", encoding="UTF-8") as f:
+        json.dump({"label2id": label2id, "id2label": id2label}, f, indent=4)
+        print(f"Label map saved to {map_path}")
+    
     return None
 
 
 
-
-# %%
-# Configurations
-DATA_DIR = "./data/chia_without_scope_test"
-OUTPUT_DIR = "./data/chia_without_scope_parsedRE_TEST"
-
 # %%
 # boilerplate
 if __name__ == "__main__":
+    # Configurations
+    DATA_DIR = "./data/chia_without_scope"
+    OUTPUT_DIR = "./data/chia_without_scope_parsedRE_full_200126"
+    # DATA_DIR = "./data/chia_without_scope_test"
+    # OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test"
+    
+    
+    # %%
     # load and parse chia-files
     if not os.path.exists(DATA_DIR):
         print(f"Error: {DATA_DIR} not found")
@@ -260,7 +266,6 @@ if __name__ == "__main__":
     relation_types.extend(sorted(list(relation_types_found)))
     print(f"Relation types found: {len(relation_types)} - {relation_types}")
     
-    
     # %%
     # create HuggingFace dataset
     # and cast label to ClassLabel
@@ -270,13 +275,5 @@ if __name__ == "__main__":
     dataset = dataset.cast_column("label", class_label)
     
     # %%
-    # split and save dataset
-    # generate and save label maps
-    split_and_save_dataset(dataset, OUTPUT_DIR)
-    
-    label2id = {l: i for i, l in enumerate(relation_types)}
-    id2label = {i: l for l, i in label2id.items()}
-    map_path = os.path.join(OUTPUT_DIR, "label_map.json")
-    with open(map_path, "w", encoding="UTF-8") as f:
-        json.dump({"label2id": label2id, "id2label": id2label}, f, indent=4)
-        print(f"Label map saved to {map_path}")
+    # split and save dataset and label mappings
+    split_and_save_dataset(dataset, relation_types, OUTPUT_DIR)
