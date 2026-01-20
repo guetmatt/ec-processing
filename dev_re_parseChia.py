@@ -8,6 +8,8 @@ import pandas as pd
 import itertools
 import json
 from datasets import Dataset, DatasetDict, ClassLabel
+import random
+from collections import Counter
 
 
 # %%
@@ -102,13 +104,117 @@ def parse_ann_file(ann_path):
 
 
 def process_files(data_dir):
+    """
+    Parses files from chia dataset
+    """
+    txt_files = glob.glob(os.path.join(data_dir, "*.txt"))
+    samples = list()
+    all_relation_types = set()
+    
+    print(f"Parsing {len(txt_files)} files for relation extraction...")
+
+    for txt_path in txt_files:
+        ann_path = txt_path.replace(".txt", ".ann")
+        if not os.path.exists(ann_path):
+            continue
+        
+        # extract criteria type from filename
+        file_name = os.path.basename(txt_path)
+        if "_exc" in file_name:
+            criteria_type = "exclusion"
+        elif "_inc" in file_name:
+            criteria_type = "inclusion"
+        else:
+            criteria_type = "unknown"
+        
+        with open(txt_path, "r", encoding="UTF-8") as f:
+            text = f.read()
+            
+        entities, relations = parse_ann_file(ann_path)
+        
+        # update set of relations
+        for rel in relations:
+            all_relation_types.add(rel[0])
+        
+        # mapping dict
+        # (arg1, arg2) -> relation_type
+        # ACHTUNG, GEHT DAVON AUS, DASS GLEICHE ENTITIES 
+        # IMMER IN GLEICHER RELATION STEHEN!
+        relation_lookup = {(r[1], r[2]): r[0] for r in relations}
+        
+        # split into sentences (newline split to match NER logic)
+        # ACHTUNG: coss-sentence relations are skipped 
+        lines = text.split('\n')
+        global_offset = 0
+
+        for line in lines:
+            line_len = len(line)
+            line_end = global_offset + line_len
+            
+            # entities in line
+            line_entities = list()
+            for entity_id, entity in entities.items():
+                if entity["start"] >= global_offset and entity["end"] <= line_end:
+                    line_entities.append(entity)
+            
+            # relation generation with entity pairs
+            # less than two entities -> no relation
+            if len(line_entities) >= 2:
+                # generating all permutations (arg1, arg2)
+                # permutations because relations are directional (arg1->arg2 != arg2->arg1)
+                for e1, e2 in itertools.permutations(line_entities, 2):
+                    
+                    # ground truth from mapping dict
+                    label = relation_lookup.get((e1["id"], e2["id"]), "NO_RELATION")
+                    
+                    # local indices
+                    # for [E1] markers injection later
+                    e1_start_local = e1["start"]-global_offset
+                    e1_end_local = e1["end"]-global_offset
+                    e2_start_local = e2["start"]-global_offset
+                    e2_end_local = e2["end"]-global_offset
+                    
+                    samples.append({
+                        "text": line,
+                        "e1_start": e1_start_local,
+                        "e1_end": e1_end_local,
+                        "e1_type": e1["type"],
+                        "e2_start": e2_start_local,
+                        "e2_end": e2_end_local,
+                        "e2_type": e2["type"],
+                        "label": label,
+                        "criteria_type": criteria_type,
+                        "filename": file_name
+                    })
+            
+            # +1 for newline
+            global_offset += line_len + 1 
+    
+    relations_df = pd.DataFrame(samples)
+    return relations_df, all_relation_types
+
+        
+        
+
+def process_files_with_downsampling(data_dir, downsampling_rate):
+    """
+    Parses files from chia dataset with downsampling of negative samples
+    """
+    
     txt_files = glob.glob(os.path.join(data_dir, "*.txt"))
     samples = list()
     
     # set to collect all relations that appear in data
     all_relation_types = set()
     
+    
+    # counters for downsamping of NO_RELATION examples
+    count_pos = 0
+    count_neg_kept = 0
+    count_neg_dropped = 0
+    
     print(f"Parsing {len(txt_files)} files for relation extraction...")
+    print(f"Negative sampling rate: {downsampling_rate}")
     
     for txt_path in txt_files:
         ann_path = txt_path.replace(".txt", ".ann")
@@ -164,6 +270,18 @@ def process_files(data_dir):
                     # ground truth from mapping dict
                     label = relation_lookup.get((e1["id"], e2["id"]), "NO_RELATION")
                     
+                    
+                    # downsampling of NO_RELATION examples
+                    if label == "NO_RELATION":
+                        # generate random number 0-1
+                        # if random number > sampling-rate --> drop example
+                        if random.random() > NEGATIVE_SAMPLING_RATE:
+                            count_neg_dropped += 1
+                            continue
+                        count_neg_kept += 1
+                    else:
+                        count_pos += 1
+                    
                     # local indices
                     # for [E1] markers injection later
                     e1_start_local = e1["start"]-global_offset
@@ -186,6 +304,18 @@ def process_files(data_dir):
             
             # +1 for newline
             global_offset += line_len + 1 
+    
+    # report of negative downsampling statistics
+    print("\n--- negative downsampling statistics ---")
+    print(f"Positive relations: {count_pos}")
+    print(f"Negatives kept:     {count_neg_kept}")
+    print(f"Negatives dropped:  {count_neg_dropped}")
+    total_generated = count_pos + count_neg_kept + count_neg_dropped
+    print(f"Total processed:    {total_generated}")
+    if count_pos > 0:
+        ratio = count_neg_kept / count_pos
+        print(f"Final neg/pos ratio: {ratio:.2f} : 1")
+    print()
     
     relations_df = pd.DataFrame(samples)
     return relations_df, all_relation_types
@@ -236,18 +366,119 @@ def split_and_save_dataset(dataset, relation_types, output_dir, seed=42):
         json.dump({"label2id": label2id, "id2label": id2label}, f, indent=4)
         print(f"Label map saved to {map_path}")
     
-    return None
+    return final_dataset, label2id, id2label
 
+
+
+def split_and_save_dataset_with_downsampling(dataset, relation_types, output_dir, downsampling_rate, seed=42):
+    """
+    Splits the parsed dataset, then downsamples only the training split, not the test or evaluation split.
+    """
+    
+    print("Splitting dataset into train/eval/test...")
+
+    # first split - without downsampling
+    split_1 = dataset.train_test_split(test_size=0.1, stratify_by_column="label", seed=seed)
+    test_dataset = split_1["test"]
+    remaining_dataset = split_1["train"]
+    
+    # second split 
+    split_2 = remaining_dataset.train_test_split(test_size=0.1111, stratify_by_column="label", seed=seed)
+    train_dataset = split_2["train"]
+    eval_dataset = split_2["test"]
+    
+    # downsampling for training split
+    print(f"\nDownsampling training set (keeping {downsampling_rate*100}% of negatives)...")
+    print(f"  Train size before: {len(train_dataset)}")
+
+    def filter_negatives(example):
+        # keep all positive relations (label != 0)
+        if example["label"] != 0:
+            return True
+        # keep random % of negative relations
+        return random.random() < downsampling_rate
+    
+    # apply downsampling filter
+    train_dataset = train_dataset.filter(filter_negatives)
+    print(f"    Train size after: {len(train_dataset)}")
+
+    final_dataset = DatasetDict({
+        "train": train_dataset,
+        "validation": eval_dataset,
+        "test": test_dataset
+    })
+
+    
+    # save dataset to disk
+    print(f"Saving dataset to {output_dir}...")
+    print(f"  Train: {len(train_dataset)}")
+    print(f"  Val:   {len(eval_dataset)}")
+    print(f"  Test:  {len(test_dataset)}")
+    final_dataset.save_to_disk(output_dir)
+    print("Save complete.")
+    
+    
+    # create and save label mappings
+    label2id = {l: i for i, l in enumerate(relation_types)}
+    id2label = {i: l for l, i in label2id.items()}
+    map_path = os.path.join(output_dir, "label_map.json")
+    with open(map_path, "w", encoding="UTF-8") as f:
+        json.dump({"label2id": label2id, "id2label": id2label}, f, indent=4)
+        print(f"Label map saved to {map_path}")
+    
+    return final_dataset, label2id, id2label
+
+
+
+def print_label_distribution(dataset, label_names):
+    """
+    Prints an overview of label counts and percentages for each split.
+    """
+    print("\n" + "="*50)
+    print("DATASET LABEL DISTRIBUTION")
+    print("="*50)
+    
+    for split_name in dataset.keys():
+        split_data = dataset[split_name]
+        total = len(split_data)
+        print()
+        print(f"Split: {split_name.upper()} (num samples: {total})")
+        print(f"{"ID":<4} {"Label Name":<25} {"Count":<8} {"%":<6}")
+        print("-" * 45)
+    
+        # count labels
+        label_ids = split_data["label"]
+        counts = Counter(label_ids)
+        
+        # print sorted by ID
+        for label_id in sorted(counts.keys()):
+            count = counts[label_id]
+            percent = (count / total) * 100
+            if label_id < len(label_names):
+                name = label_names[label_id]
+            else:
+                name = "unknown"
+            
+            print(f"{label_id:<4} {name:<25} {count:<8} {percent:>5.1f}%")
+    
+    
 
 
 # %%
 # boilerplate
 if __name__ == "__main__":
     # Configurations
-    DATA_DIR = "./data/chia_without_scope"
-    OUTPUT_DIR = "./data/chia_without_scope_parsedRE_full_200126"
+    # DATA_DIR = "./data/chia_without_scope"
+    # OUTPUT_DIR = "./data/chia_without_scope_parsedRE_full_200126"
     # DATA_DIR = "./data/chia_without_scope_test"
     # OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test"
+    DATA_DIR = "./data/chia_without_scope_test_small"
+    OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test_small"
+    
+    # controls for imbalance of data samples
+    NEGATIVE_SAMPLING_RATE = 0.1 # keep x% of negative samples
+    SEED = 42
+    random.seed(SEED)
     
     
     # %%
@@ -255,13 +486,26 @@ if __name__ == "__main__":
     if not os.path.exists(DATA_DIR):
         print(f"Error: {DATA_DIR} not found")
     else:
+        # wtihout prior downsampling
         df, relation_types_found = process_files(DATA_DIR)
+        # with downsampling of complete dataset
+        # df, relation_types_founnd = process_files_with_downsampling(DATA_DIR, NEGATIVE_SAMPLING_RATE)
         print(f"Generated {len(df)} relation pairs")
         print(df["label"].value_counts())
+    
+    # drop every relation label that only has one example
+    # --> can not be handled by dataset
+    counts = df["label"].value_counts()
+    valid_labels = counts[counts > 1].index
+    df = df[df["label"].isin(valid_labels)]
+    relation_types_found = set(df["label"])
+    print(relation_types_found)
     
     # %%
     # dynamic set relation types
     # NO_RELATION = 0
+    if "NO_RELATION" in relation_types_found:
+        relation_types_found.remove("NO_RELATION")    
     relation_types = ["NO_RELATION"]
     relation_types.extend(sorted(list(relation_types_found)))
     print(f"Relation types found: {len(relation_types)} - {relation_types}")
@@ -274,6 +518,19 @@ if __name__ == "__main__":
     class_label = ClassLabel(names=relation_types)
     dataset = dataset.cast_column("label", class_label)
     
+    
     # %%
     # split and save dataset and label mappings
-    split_and_save_dataset(dataset, relation_types, OUTPUT_DIR)
+    # without any downsampling
+    # split_and_save_dataset(dataset, relation_types, OUTPUT_DIR)
+    
+    # with downsampling of training split (not test or eval)
+    dataset, label2id, id2label = split_and_save_dataset_with_downsampling(dataset, relation_types, OUTPUT_DIR, NEGATIVE_SAMPLING_RATE)
+    
+    # %%
+    # print label distribution
+    print_label_distribution(dataset, relation_types)
+    
+    # for downsampling of all samples
+    # use function "process_files_with_downsampling"
+    # in combination with "split_and_save_dataset"
