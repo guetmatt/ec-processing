@@ -473,10 +473,10 @@ if __name__ == "__main__":
     # DATA_DIR = "./data/chia_without_scope_test"
     # OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test"
     DATA_DIR = "./data/chia_without_scope_test_small"
-    OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test_small"
+    OUTPUT_DIR = "./data/chia_without_scope_parsedRE_test_small_fullDownsampled"
     
     # controls for imbalance of data samples
-    NEGATIVE_SAMPLING_RATE = 0.1 # keep x% of negative samples
+    NEGATIVE_SAMPLING_RATE = 0.2 # keep x% of negative samples
     SEED = 42
     random.seed(SEED)
     
@@ -487,9 +487,9 @@ if __name__ == "__main__":
         print(f"Error: {DATA_DIR} not found")
     else:
         # wtihout prior downsampling
-        df, relation_types_found = process_files(DATA_DIR)
+        # df, relation_types_found = process_files(DATA_DIR)
         # with downsampling of complete dataset
-        # df, relation_types_founnd = process_files_with_downsampling(DATA_DIR, NEGATIVE_SAMPLING_RATE)
+        df, relation_types_founnd = process_files_with_downsampling(DATA_DIR, NEGATIVE_SAMPLING_RATE)
         print(f"Generated {len(df)} relation pairs")
         print(df["label"].value_counts())
     
@@ -522,10 +522,10 @@ if __name__ == "__main__":
     # %%
     # split and save dataset and label mappings
     # without any downsampling
-    # split_and_save_dataset(dataset, relation_types, OUTPUT_DIR)
+    dataset, label2id, id2label = split_and_save_dataset(dataset, relation_types, OUTPUT_DIR)
     
     # with downsampling of training split (not test or eval)
-    dataset, label2id, id2label = split_and_save_dataset_with_downsampling(dataset, relation_types, OUTPUT_DIR, NEGATIVE_SAMPLING_RATE)
+    # dataset, label2id, id2label = split_and_save_dataset_with_downsampling(dataset, relation_types, OUTPUT_DIR, NEGATIVE_SAMPLING_RATE)
     
     # %%
     # print label distribution

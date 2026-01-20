@@ -88,8 +88,8 @@ def compute_metrics(eval_pred):
 # %% 
 # configuration
 BASE_PATH = "./data"
-DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small")
-OUTPUT_DIR = "./models/re_test_small"
+DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small_fullDownsampled")
+OUTPUT_DIR = "./models/re_test_small_fullDownsampled"
 MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # %%
