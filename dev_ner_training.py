@@ -1,7 +1,5 @@
 # TO DECIDE
 # - compute_metrics_tok or compute_metrics_seq ???
-# - how many epochs? how to find the best hyperparameters?
-# - converge some labels into one another! -- labeling scheme
 # - handle this warning during training loop:
 #    /usr/local/lib/python3.12/dist-packages/sklearn/metrics/_classification.py:1565:
 #       UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples.

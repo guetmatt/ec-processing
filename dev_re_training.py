@@ -83,13 +83,20 @@ def compute_metrics(eval_pred):
     
     return results
 
-
-
 # %% 
 # configuration
-BASE_PATH = "./data"
-DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small_fullDownsampled")
-OUTPUT_DIR = "./models/re_test_small_fullDownsampled"
+
+# # local paths
+# BASE_PATH = "./data"
+# DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small_fullDownsampled")
+# OUTPUT_DIR = "./models/re_test_small_fullDownsampled2"
+# MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+
+# paths for google colab
+BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
+DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test")
+print(f"DATA_PATH = {DATA_PATH}")
+OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test_small_fullDownsampled")
 MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # %%
@@ -98,6 +105,7 @@ MAX_LEN = 256
 BATCH_SIZE = 16
 EPOCHS = 5
 LEARNING_RATE = 2e-5
+
 
 
 def main():
@@ -232,4 +240,5 @@ def main():
 # %%
 # boilerplate
 if __name__ == "__main__":
+
     main()
