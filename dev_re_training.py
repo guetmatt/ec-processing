@@ -6,11 +6,16 @@ import os
 import json
 import numpy as np
 import torch
+from torch.nn import CrossEntropyLoss
+from functools import partial
 from datasets import load_from_disk
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from transformers import TrainingArguments, Trainer, DataCollatorWithPadding
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, classification_report
-
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+from sklearn.utils.class_weight import compute_class_weight
 
 
 # %%
@@ -83,6 +88,69 @@ def compute_metrics(eval_pred):
     
     return results
 
+
+
+def compute_weighted_loss(outputs, labels, num_items_in_batch=None, class_weights=None):
+    """
+    Custom weighted loss function to handle class imbalance.
+    Dynamically moves weights to same device as input.
+    """    
+
+    # extract logits
+    logits = outputs.get("logits")
+    
+    # move class_weights to correct device
+    if class_weights is not None:
+        class_weights = class_weights.to(logits.device)
+    
+    # define and compute weighted loss
+    loss_func = CrossEntropyLoss(weight=class_weights)
+    loss = loss_func(logits.view(-1, logits.shape[-1]), labels.view(-1))
+    
+    return loss
+
+
+
+
+def plot_confusion_matrix(y_true, y_pred, label_map, output_dir):
+    """Generates and saves a normalized confusion matrix heatmap."""
+
+    # sort labels by ID --> axis alignment matches the matrix indices
+    sorted_labels = sorted(label_map.items(), key=lambda x: x[1])
+    label_names = [x[0] for x in sorted_labels]
+    label_ids = [x[1] for x in sorted_labels]
+
+    # compute matrix
+    matrix = confusion_matrix(y_true, y_pred, labels=label_ids, normalize="true")
+    
+    # plot matrix
+    plt.figure(figsize=(14, 22))
+    sns.heatmap(
+        matrix,
+        annot=True,
+        fmt=".2f",
+        xticklabels=label_names,
+        yticklabels=label_names,
+        cmap="Blues",
+        cbar=True
+    )
+    
+    plt.ylabel("True Label", fontsize=12)
+    plt.xlabel("Predicted Label", fontsize=12)
+    plt.title("Normalized Confusion Matrix (Relation Extraction)", fontsize=14)
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    
+    # save plot to disk
+    save_path = os.path.join(output_dir, "confusion_matrix_re.png")
+    plt.savefig(save_path, dpi=300)
+    print(f"Confusion matrix saved to {save_path}")
+    plt.close()
+    
+    return None
+
+
 # %% 
 # configuration
 
@@ -94,9 +162,9 @@ def compute_metrics(eval_pred):
 
 # paths for google colab
 BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
-DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test")
+DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test_small_fullDownsampled")
 print(f"DATA_PATH = {DATA_PATH}")
-OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test_small_fullDownsampled")
+OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test_small")
 MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # %%
@@ -126,7 +194,7 @@ def main():
     print(f"Loaded {len(dataset["train"])} training samples.")
     print(f"Labels: {list(label2id.keys())}")
     
-    
+  
     # %%
     # entity marker injection
     print("Injecting entity markers...")
@@ -175,6 +243,7 @@ def main():
     # resize embeddings to fit new special tokens
     model.resize_token_embeddings(len(tokenizer))
     
+    
     # %%
     # training configuration
     args = TrainingArguments(
@@ -194,6 +263,26 @@ def main():
         report_to="none"
     )
     
+    
+    
+    # %%
+    # weighted loss  
+    # calculate class weights
+    # based on class imbalance
+    train_labels = dataset["train"]["label"]
+    class_weights_np = compute_class_weight(
+        class_weight="balanced",
+        classes=np.unique(train_labels),
+        y=train_labels
+    )
+    class_weights = torch.tensor(class_weights_np, dtype=torch.float32).to(model.device)
+    
+    # custom weighted loss function
+    # partial --> freezes arguments
+    # --> so they do not have to be passed to Trainer
+    weighted_loss = partial(compute_weighted_loss, class_weights=class_weights)
+  
+    # %%
     trainer = Trainer(
         model=model,
         args=args,
@@ -201,7 +290,8 @@ def main():
         eval_dataset=tokenized_dataset["validation"],
         tokenizer=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer),
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
+        compute_loss_func=weighted_loss
     )
     
     # %%
@@ -223,12 +313,24 @@ def main():
     y_pred = np.argmax(raw_pred, axis=1)
     y_true = tokenized_dataset["test"]["label"]
     
+    # ensures that all labels are used for evaluation report
+    # even if they do not occur in data 
+    all_labels_ids = list(label2id.values())
+    all_labels_names = list(label2id.keys())
+    
     print(classification_report(
         y_true,
         y_pred,
-        target_names=list(label2id.keys()),
+        labels=all_labels_ids,
+        target_names=all_labels_names,
         zero_division=0
     ))
+    
+    
+    # generate confusion matrix
+    print("Generating confusion matrix...")
+    plot_confusion_matrix(y_true, y_pred, label2id, OUTPUT_DIR)
+    
     
     # %%
     # save tokenizer trained model
