@@ -16,6 +16,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.metrics import confusion_matrix
 from sklearn.utils.class_weight import compute_class_weight
+import optuna
 
 
 # %%
@@ -150,21 +151,50 @@ def plot_confusion_matrix(y_true, y_pred, label_map, output_dir):
     return None
 
 
+
+# global tokenizer variable needed inside model_inint
+tokenizer = None
+def model_init(trial=None):
+    global tokenizer, label2id, id2label
+    
+    model = AutoModelForSequenceClassification.from_pretrained(
+        MODEL_CHECKPOINT,
+        num_labels=len(label2id),
+        id2label=id2label,
+        label2id=label2id
+        )
+    # resize embeddings because of added special tokens
+    model.resize_token_embeddings(len(tokenizer))
+    return model
+
+
+
+def hyperparameter_space(trial):
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
+        "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
+        "weight_decay": trial.suggest_float("weight_decay", 0.01, 0.3), 
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 4, 8)
+    }
+
+
+
+
 # %% 
 # configuration
 
 # # local paths
-# BASE_PATH = "./data"
-# DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small_fullDownsampled")
-# OUTPUT_DIR = "./models/re_test_small_fullDownsampled2"
-# MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+BASE_PATH = "./data"
+DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_test_small_fullDownsampled")
+OUTPUT_DIR = "./models/re_test_small_fullDownsampled_hpOpt"
+MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # paths for google colab
-BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
-DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test")
-print(f"DATA_PATH = {DATA_PATH}")
-OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test")
-MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+# BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
+# DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test")
+# print(f"DATA_PATH = {DATA_PATH}")
+# OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test")
+# MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # %%
 # Hyperparameters
@@ -179,6 +209,9 @@ def main():
     """
     Training loop.
     """
+    
+    # %%
+    global tokenizer, label2id, id2label, DATA_PATH, MODEL_CHECKPOINT
     
     # %%
     # load training data + label mapping
@@ -202,13 +235,13 @@ def main():
     
     # %%
     # tokenizer setup
+    # add special tokens to tokenizer
     print("Setting up tokenizer...")
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)
-    
-    # add speical tokens to tokenizer
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_CHECKPOINT)   
     special_tokens = {"additional_special_tokens": ["[E1]", "[/E1]", "[E2]", "[/E2]"]}
     num_added_tokens = tokenizer.add_special_tokens(special_tokens)
     print(f"Added {num_added_tokens} special tokens: {special_tokens["additional_special_tokens"]}")
+    
     
     # tokenization
     def tokenize_function(examples):
@@ -229,39 +262,50 @@ def main():
     tokenized_dataset.set_format(type="torch", columns=columns_to_keep)
     
     
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # # model initialization
+    # print("Initializing model...")
+    # model = AutoModelForSequenceClassification.from_pretrained(
+    #     MODEL_CHECKPOINT,
+    #     num_labels=len(label2id),
+    #     id2label=id2label,
+    #     label2id=label2id
+    # )
+    # # resize embeddings to fit new special tokens
+    # model.resize_token_embeddings(len(tokenizer))
+    
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # # training configuration
+    # args = TrainingArguments(
+    #     output_dir=OUTPUT_DIR,
+    #     eval_strategy="epoch",
+    #     save_strategy="epoch",
+    #     learning_rate=LEARNING_RATE,
+    #     per_device_train_batch_size=BATCH_SIZE,
+    #     per_device_eval_batch_size=BATCH_SIZE,
+    #     num_train_epochs=EPOCHS,
+    #     weight_decay=0.01,
+    #     load_best_model_at_end=True,
+    #     metric_for_best_model="f1",
+    #     save_total_limit=2,
+    #     logging_dir=f"{OUTPUT_DIR}/logs",
+    #     logging_steps=50,
+    #     report_to="none"
+    # )
+    
+    # WITH HYPERPARAMETER OPTIMIZATION
     # %%
-    # model initialization
-    print("Initializing model...")
-    model = AutoModelForSequenceClassification.from_pretrained(
-        MODEL_CHECKPOINT,
-        num_labels=len(label2id),
-        id2label=id2label,
-        label2id=label2id
-    )
-    
-    # resize embeddings to fit new special tokens
-    model.resize_token_embeddings(len(tokenizer))
-    
-    
-    # %%
-    # training configuration
     args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         eval_strategy="epoch",
         save_strategy="epoch",
-        learning_rate=LEARNING_RATE,
-        per_device_train_batch_size=BATCH_SIZE,
-        per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=EPOCHS,
-        weight_decay=0.01,
         load_best_model_at_end=True,
         metric_for_best_model="f1",
-        save_total_limit=2,
-        logging_dir=f"{OUTPUT_DIR}/logs",
-        logging_steps=50,
+        fp16=True,
         report_to="none"
     )
-    
     
     
     # %%
@@ -280,7 +324,11 @@ def main():
     # re-normalize class_weigts
     # so that average weight is roguhly 1.0
     class_weights_np = class_weights_np / np.mean(class_weights_np)
-    class_weights_tensor = torch.tensor(class_weights_np, dtype=torch.float32).to(model.device)
+    
+    # device same as input
+    # class_weights_tensor = torch.tensor(class_weights_np, dtype=torch.float32).to(model.device)
+    class_weights_tensor = torch.tensor(class_weights_np, dtype=torch.float32)
+    
     
     print("\n --- WEIGHTING SANITY CHECK ---")
     for idx, weight in enumerate(class_weights_np):
@@ -306,17 +354,50 @@ def main():
     # --> so they do not have to be passed to Trainer
     weighted_loss = partial(compute_weighted_loss, class_weights=class_weights_tensor)
   
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # trainer = Trainer(
+    #     model=model,
+    #     args=args,
+    #     train_dataset=tokenized_dataset["train"],
+    #     eval_dataset=tokenized_dataset["validation"],
+    #     tokenizer=tokenizer,
+    #     data_collator=DataCollatorWithPadding(tokenizer),
+    #     compute_metrics=compute_metrics,
+    #     compute_loss_func=weighted_loss
+    # )
+    
+    
+    # WITH HYPERPARAMETER OPTIMIZATION
     # %%
     trainer = Trainer(
-        model=model,
+        model_init=model_init,
         args=args,
         train_dataset=tokenized_dataset["train"],
         eval_dataset=tokenized_dataset["validation"],
         tokenizer=tokenizer,
-        data_collator=DataCollatorWithPadding(tokenizer),
         compute_metrics=compute_metrics,
         compute_loss_func=weighted_loss
     )
+    
+    
+    # WITH HYPERPARAMETER OPTIMIZATION
+    # %%
+    # run hpo search
+    print("Starting hyperparameter search...")
+    best_run = trainer.hyperparameter_search(
+        direction="maximize",
+        hp_space=hyperparameter_space,
+        backend="optuna",
+        n_trials=2 # 2 for testing, later 10+
+    )
+    print(f"Best hyperparameters: {best_run}")
+    
+    # final training
+    for n, v in best_run.hyperparameters.items():
+        setattr(trainer.args, n, v)
+    
+    
     
     # %%
     # training

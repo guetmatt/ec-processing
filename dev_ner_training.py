@@ -17,6 +17,9 @@ from datasets import load_from_disk
 from transformers import AutoModelForTokenClassification, TrainingArguments, Trainer
 from transformers import DataCollatorForTokenClassification, AutoTokenizer
 from sklearn.metrics import precision_recall_fscore_support, accuracy_score, classification_report
+import optuna
+import sys
+from optuna.visualization import plot_param_importances, plot_parallel_coordinate
 
 
 # %%
@@ -132,11 +135,52 @@ def compute_metrics_tok(p):
         "accuracy": accuracy
     }
     
+    # classification report
+    # with label_names instead of label_ids
+    global id2label
+    sorted_ids = sorted_ids = sorted(id2label.keys())
+    sorted_names = [id2label[id] for id in sorted_ids]
     print("\n--- Detailed scikit-learn classification report for token-based evaluation ---")
-    print(classification_report(true_labels_flat, predictions_flat))
-    
+    print(classification_report(
+        true_labels_flat,
+        predictions_flat,
+        labels=sorted_ids,
+        target_names=sorted_names,
+        zero_division=0
+    ))
+
     return results_overall
 
+
+
+def model_init(trial=None):
+    """
+    Re-initializes the model for every trial of hyperparameter-optimization.
+    The 'trial' argument is required by the Trainer but is not used here.
+    """
+    
+    label2id, id2label = load_label_map(DATA_PATH)
+    
+    return AutoModelForTokenClassification.from_pretrained(
+        MODEL_CHECKPOINT,
+        num_labels=len(label2id),
+        id2label=id2label,
+        label2id=label2id
+    )
+
+
+
+def hyperparameter_space(trial):
+    """
+    Defines the hyperparameter search space.
+    Here: stick to standard narrow ranges.
+    """
+    return {
+        "learning_rate": trial.suggest_float("learning_rate", 1e-5, 5e-5, log=True),
+        "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
+        "weight_decay": trial.suggest_float("weight_decay", 0.01, 0.3),
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 4, 8)
+    }
 
 
 
@@ -146,6 +190,7 @@ def main():
     # %%
     # for compute_metrics_seq function
     global id2label, label2id
+    global DATA_PATH, MODEL_CHECKPOINT
     
     # %%
     # load dataset
@@ -170,16 +215,17 @@ def main():
     print(f"Loaded {len(label_list)} labels: {label_list[:5]}...")
     
 
-    # %%
-    # model initialization
-    # resize classification head to match number of labels
-    print("Initializing Model...")
-    model = AutoModelForTokenClassification.from_pretrained(
-        MODEL_CHECKPOINT,
-        num_labels=len(label_list),
-        id2label=id2label,
-        label2id=label2id
-    )
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # # model initialization
+    # # resize classification head to match number of labels
+    # print("Initializing Model...")
+    # model = AutoModelForTokenClassification.from_pretrained(
+    #     MODEL_CHECKPOINT,
+    #     num_labels=len(label_list),
+    #     id2label=id2label,
+    #     label2id=label2id
+    # )
     
     
     # %%
@@ -191,40 +237,88 @@ def main():
     data_collator = DataCollatorForTokenClassification(tokenizer=tokenizer)
     
     
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # # training arguments
+    # args = TrainingArguments(
+    #     output_dir=OUTPUT_DIR,
+    #     eval_strategy="epoch",
+    #     save_strategy="epoch",  
+    #     learning_rate=LEARNING_RATE,
+    #     per_device_train_batch_size=BATCH_SIZE,
+    #     per_device_eval_batch_size=BATCH_SIZE,
+    #     num_train_epochs=NUM_EPOCHS,
+    #     weight_decay=WEIGHT_DECAY,
+    #     load_best_model_at_end=True,
+    #     metric_for_best_model="f1",
+    #     logging_dir=f"{OUTPUT_DIR}/logs",
+    #     logging_steps=50,
+    #     save_total_limit=2,
+    #     # colab-specific settings
+    #     fp16 = True, # enhances training speed on gpu
+    #     report_to="none", # disables WandB prompts
+    #     dataloader_num_workers=2, # speeds up data loading
+    # )
+    
+    # WTIH HYPERPARAMETER OPTIMIZATION
     # %%
     # training arguments
     args = TrainingArguments(
         output_dir=OUTPUT_DIR,
         eval_strategy="epoch",
-        save_strategy="epoch",  
-        learning_rate=LEARNING_RATE,
-        per_device_train_batch_size=BATCH_SIZE,
-        per_device_eval_batch_size=BATCH_SIZE,
-        num_train_epochs=NUM_EPOCHS,
-        weight_decay=WEIGHT_DECAY,
+        save_strategy="epoch",
         load_best_model_at_end=True,
         metric_for_best_model="f1",
-        logging_dir=f"{OUTPUT_DIR}/logs",
-        logging_steps=50,
-        save_total_limit=2,
-        # colab-specific settings
-        fp16 = True, # enhances training speed on gpu
-        report_to="none", # disables WandB prompts
-        dataloader_num_workers=2, # speeds up data loading
+        save_total_limit=1,
+        fp16=True,
+        disable_tqdm=False,
+        report_to="none"
+    )
+    
+    
+    # WITHOUT HYPERPARAMETER OPTIMIZATION
+    # # %%
+    # # initialize trainer
+    # trainer = Trainer(
+    #     model=model,
+    #     args=args,
+    #     train_dataset=train_dataset,
+    #     eval_dataset=eval_dataset,
+    #     tokenizer=tokenizer,
+    #     data_collator=data_collator,
+    #     compute_metrics=compute_metrics_tok,
+    # )
+    
+    # WITH HYPERPARAMETER OPTIMIZATION
+    # %%
+    # initialize trainer
+    trainer = Trainer(
+        model_init=model_init,
+        args=args,
+        train_dataset=dataset["train"],
+        eval_dataset=dataset["validation"],
+        tokenizer=tokenizer,
+        data_collator=data_collator,
+        compute_metrics=compute_metrics_tok
     )
     
     
     # %%
-    # initialize trainer
-    trainer = Trainer(
-        model=model,
-        args=args,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
-        tokenizer=tokenizer,
-        data_collator=data_collator,
-        compute_metrics=compute_metrics_tok,
+    # Hyperparameter optimization search
+    print(f"Starting hyperparameter search...")
+    best_run = trainer.hyperparameter_search(
+        direction="maximize",
+        hp_space=hyperparameter_space,
+        backend="optuna",
+        n_trials=2, # 10 for testing, 20+ for final model
+        study_name="ner_hpo_search"
     )
+    print(f"Best run found: {best_run}")
+    
+    # retrain on full parameters of best_run
+    # update args with best_run parameters
+    for n, v in best_run.hyperparameters.items():
+        setattr(trainer.args, n, v)
     
     
     # %%
@@ -254,17 +348,17 @@ if __name__ == "__main__":
     
     # %%
     # local paths
-    # DATA_PATH = "./data/chia_without_scope_parsedNER_lines_full_100126"
-    # MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
-    # OUTPUT_DIR = "./models/NER_chia_lines_full_10026"
-
-    # %%
-    # paths for google colab
-    BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
-    DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedNER_lines_full_100126")
-    print(f"DATA_PATH = {DATA_PATH}")
-    OUTPUT_DIR = os.path.join(BASE_PATH, "models/NER_chia_lines_full_100126")
+    DATA_PATH = "./data/chia_without_scope_parsedNER_lines_v1_TEST"
     MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+    OUTPUT_DIR = "./models/NER_chia_lines_test_hpo"
+
+    # # %%
+    # # paths for google colab
+    # BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
+    # DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedNER_lines_full_100126")
+    # print(f"DATA_PATH = {DATA_PATH}")
+    # OUTPUT_DIR = os.path.join(BASE_PATH, "models/NER_chia_lines_full_100126")
+    # MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
     # %%
     # hyperparameters
