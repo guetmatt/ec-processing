@@ -111,7 +111,6 @@ def compute_weighted_loss(outputs, labels, num_items_in_batch=None, class_weight
 
 
 
-
 def plot_confusion_matrix(y_true, y_pred, label_map, output_dir):
     """Generates and saves a normalized confusion matrix heatmap."""
 
@@ -162,9 +161,9 @@ def plot_confusion_matrix(y_true, y_pred, label_map, output_dir):
 
 # paths for google colab
 BASE_PATH = "/content/drive/MyDrive/masters_thesis_computing"
-DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test_small_fullDownsampled")
+DATA_PATH = os.path.join(BASE_PATH, "data/chia_without_scope_parsedRE_test")
 print(f"DATA_PATH = {DATA_PATH}")
-OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test_small")
+OUTPUT_DIR = os.path.join(BASE_PATH, "models/RE_chia_test")
 MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
 
 # %%
@@ -275,12 +274,37 @@ def main():
         classes=np.unique(train_labels),
         y=train_labels
     )
-    class_weights = torch.tensor(class_weights_np, dtype=torch.float32).to(model.device)
+    # dampen class_weights 
+    # to reduce risk of gradient explosion
+    class_weights_np = np.sqrt(class_weights_np)
+    # re-normalize class_weigts
+    # so that average weight is roguhly 1.0
+    class_weights_np = class_weights_np / np.mean(class_weights_np)
+    class_weights_tensor = torch.tensor(class_weights_np, dtype=torch.float32).to(model.device)
+    
+    print("\n --- WEIGHTING SANITY CHECK ---")
+    for idx, weight in enumerate(class_weights_np):
+        label_name = id2label[str(idx)]
+        print(f"Class '{label_name}': Weight {weight:.4f}")
+    max_w = np.max(class_weights_np)
+    min_w = np.min(class_weights_np)
+    ratio = max_w / min_w
+    
+    print(f"\nMax Weight: {max_w:.2f}")
+    print(f"Min Weight: {min_w:.2f}")
+    print(f"Penalty Ratio: {ratio:.2f}x")
+    print(f"(This means the model is penalized {ratio:.0f} times more for missing a rare class than a common one)")
+    
+    if ratio > 50:
+        print("\n[WARNING] Your penalty ratio is very high (>50x). Risk of gradient explosion.")
+        print("Consider 'Gradient Clipping' or using sqrt(weights) to soften them.")
+    print("-------------------------------------\n")
+    
     
     # custom weighted loss function
     # partial --> freezes arguments
     # --> so they do not have to be passed to Trainer
-    weighted_loss = partial(compute_weighted_loss, class_weights=class_weights)
+    weighted_loss = partial(compute_weighted_loss, class_weights=class_weights_tensor)
   
     # %%
     trainer = Trainer(
