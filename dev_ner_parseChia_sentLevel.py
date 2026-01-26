@@ -1,7 +1,6 @@
 # TO DO
 # - parse complete dataset
 # - look at labels used in chia annotation -- decide if some should be merged or removed
-# - develop NER training/evaluation pipeline
 
 
 

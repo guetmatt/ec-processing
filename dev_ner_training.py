@@ -348,7 +348,7 @@ if __name__ == "__main__":
     
     # %%
     # local paths
-    DATA_PATH = "./data/chia_without_scope_parsedNER_lines_v1_TEST"
+    DATA_PATH = "./data/chia_without_scope_parsedNER_lines_full_100126"
     MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
     OUTPUT_DIR = "./models/NER_chia_lines_test_hpo"
 
@@ -370,3 +370,46 @@ if __name__ == "__main__":
     # %%
     main()
     
+    
+    
+    
+    # # GETTING SOME DATA STATS
+    
+    # # %%
+    # # load dataset
+    # print(f"Loading dataset from {DATA_PATH}...")
+    # try:
+    #     dataset = load_from_disk(DATA_PATH)
+    #     print(f"Dataset loaded with splits: {dataset.keys()}")
+    # except FileNotFoundError:
+    #     print("Error: dataset not found. Please run your preprocessing script first.")
+        
+
+    # # %%
+    # # dataset splits
+    # train_dataset = dataset["train"]
+    # eval_dataset = dataset["validation"]
+    # test_dataset = dataset["test"]
+    
+    # # %%
+    # # load label mappings
+    # label2id, id2label = load_label_map(DATA_PATH)
+    # label_list = list(label2id.keys())
+    # print(f"Loaded {len(label_list)} labels: {label_list[:5]}...")
+    
+    
+    # # %%
+    # print(train_dataset.features)
+    # print(train_dataset[0]["labels"])
+    # #%%
+    # counter = 0
+    # for idx, entry in enumerate(train_dataset):
+    #     labels = list()
+    #     for label_id in entry["labels"]:
+    #         labels.append(id2label[label_id])
+        
+    #     if "B-Subjective_judgement" in labels:
+    #         print(entry["sentence_text"])
+    #         counter += 1
+        
+    # print(counter)    

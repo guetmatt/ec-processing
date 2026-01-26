@@ -449,3 +449,43 @@ def main():
 if __name__ == "__main__":
 
     main()
+    
+    
+    # GETTING SOME DATASETS STATS
+    
+    # %%
+    BASE_PATH = "./data"
+    DATA_PATH = os.path.join(BASE_PATH, "chia_without_scope_parsedRE_full_200126")
+    OUTPUT_DIR = "./models/re_test_small_fullDownsampled_hpOpt"
+    MODEL_CHECKPOINT = "emilyalsentzer/Bio_ClinicalBERT"
+    
+    # %%
+    # load training data + label mapping
+    print(f"Loading dataset from {DATA_PATH}...")
+    try:
+        dataset = load_from_disk(DATA_PATH)
+        label2id, id2label = load_label_map(DATA_PATH)
+    except FileNotFoundError:
+        print("Error: Dataset or label_map.json not found.")
+        # return
+
+    print(f"Loaded {len(dataset["train"])} training samples.")
+    print(f"Labels: {list(label2id.keys())}")
+    
+    # %%
+    train_dataset = dataset["train"]
+    eval_dataset = dataset["validation"]
+    test_dataset = dataset["test"]
+    
+    # %%
+    print(type(train_dataset[0]["label"]))
+    
+    
+    # %%
+    counter = 0
+    for idx, entry in enumerate(train_dataset):
+        label = id2label[str(entry["label"])]
+        if label == "multi":
+            print(entry["text"])
+            counter += 1
+    print(counter)
