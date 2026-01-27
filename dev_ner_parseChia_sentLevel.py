@@ -1,11 +1,3 @@
-# TO DO
-# - parse complete dataset
-# - look at labels used in chia annotation -- decide if some should be merged or removed
-
-
-
-
-
 # PARSING THE CHIA DATASET FOR NER TASKS - SENTENCE-WISE APPROACH
 
 # %%
