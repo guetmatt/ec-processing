@@ -9,7 +9,6 @@ Usage:
 """
 
 
-# %%
 # --- imports --- #
 import os
 import json
@@ -36,7 +35,6 @@ import optuna
 
 
 
-# %%
 # --- logging setup --- #
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -47,7 +45,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# %%
+
 # --- functions --- #
 def load_label_map(input_dir: str, filename: str = "label_map.json"):
     """

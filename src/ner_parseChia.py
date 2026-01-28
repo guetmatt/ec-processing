@@ -1,14 +1,15 @@
 """
-Chia Dataset Preprocessing Module
+Chia Dataset Preprocessing Module for Named Entity Recognition (NER)
 
-This script parses the Chia dataset (chia_without_scope) for Named Entity Recognition (NER) tasks.
+This script parses the Chia dataset (chia_without_scope) for NER tasks.
 --> file processing, line-level label alignment, tokenization, iterative stratification, train/test/eval splitting
 
 Usage:
     python ner_parseChia.py --data_dir ./data/chia_raw --output_dir ./data/processed_ner
 """
 
-# %%
+
+
 # --- imports --- #
 import os
 import glob
@@ -27,7 +28,6 @@ from iterstrat.ml_stratifiers import MultilabelStratifiedShuffleSplit
 
 
 
-# %%
 # --- logging setup --- #
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
@@ -38,7 +38,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# %%
+
 # --- global constants --- #
 
 # set of accepted entity labels
@@ -55,7 +55,7 @@ ACCEPTED_ENTITY_TYPES = {
     }
 
 
-# %%
+
 # --- preprocessing functions --- #
 
 def parse_brat_file(ann_path: str):
@@ -505,11 +505,11 @@ def main(args):
     Arguments provided via command line.
     
     Args:
-        - data_dir (str): Path to directory containing raw .txt and .ann files, default="../data/chia_without_scope"
-        - output_dir (str): Directory to save the parsed chia dataset, default="../data/chia_without_scope_parsedNER_v1"
-        - model_checkpoint (str): HuggingFace model checkpoint for tokenizer, default="emilyalsentzer/Bio_ClinicalBERT
-        - max_len (int): Maximum token length for padding/truncation, default=128
-        - seed (int): Random seed for stratification, default=42
+        data_dir (str): Path to directory containing raw .txt and .ann files, default="../data/chia_without_scope"
+        output_dir (str): Directory to save the parsed chia dataset, default="../data/chia_without_scope_parsedNER_v1"
+        model_checkpoint (str): HuggingFace model checkpoint for tokenizer, default="emilyalsentzer/Bio_ClinicalBERT
+        max_len (int): Maximum token length for padding/truncation, default=128
+        seed (int): Random seed for stratification, default=42
     """
     logger.info(f"Data Directory: {args.data_dir}")
     logger.info(f"Output Directory: {args.output_dir}")
@@ -540,7 +540,6 @@ def main(args):
 
 
 # --- main execution --- #
-#%%
 # boilerplate    
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Parse the chia dataset for NER.")   
