@@ -29,6 +29,7 @@ import argparse
 import sys
 import itertools
 from pathlib import Path
+import ast
 
 import pandas as pd
 from transformers import (
@@ -244,6 +245,7 @@ def main(args):
         output_dir(str): Directory to save the predictions, default="../results"
         ner_model_path (str): Path to NER model
         re_model_path (str): Path to RE model
+        mode (str): Inference mode, whether to apply NER + RE inference, NER only, or RE only. ["ner+re", "ner", "re"], default="ner+re"
         sample_size (optional, int): Limit number of sentences for testing, not applied when not defined, default=None
     """
     # (1) environment setup
@@ -264,55 +266,95 @@ def main(args):
     logger.info("Initializing models...")
     # NER model and tokenizer
     # device --> 0=cpu, 1=gpu
-    ner_pipeline = pipeline(
-        "token-classification",
-        model=args.ner_model_path,
-        tokenizer=args.ner_model_path,
-        aggregation_strategy="simple",
-        device=0 if torch.cuda.is_available() else -1
-    )
+    if args.mode == "ner+re" or args.mode=="ner":
+        ner_pipeline = pipeline(
+            "token-classification",
+            model=args.ner_model_path,
+            tokenizer=args.ner_model_path,
+            aggregation_strategy="simple",
+            device=0 if torch.cuda.is_available() else -1
+            )
     
     # RE model and tokenizer
-    re_tokenizer = AutoTokenizer.from_pretrained(args.re_model_path)
-    re_model = AutoModelForSequenceClassification.from_pretrained(args.re_model_path).to(device)
+    if args.mode == "ner+re" or args.mode=="re":
+        re_tokenizer = AutoTokenizer.from_pretrained(args.re_model_path)
+        re_model = AutoModelForSequenceClassification.from_pretrained(args.re_model_path).to(device)
 
     # (4) Named Entity Recognition
-    logger.info("Running NER Module...")
-    ner_results = list()
-    # extract entities for each sentence
-    for idx, row in df.iterrows():
-        text = str(row["text"])
-        entities = run_ner_module(text, ner_pipeline)
+    if args.mode == "ner+re" or args.mode=="ner":
+        logger.info("Running NER Module...")
+        ner_results = list()
+        # extract entities for each sentence
+        for idx, row in df.iterrows():
+            text = str(row["text"])
+            entities = run_ner_module(text, ner_pipeline)
         
-        ner_results.append({
-            "sentence_id": idx,
-            "nct_id": row.get("studyNCTid", "unknown"),
-            "criteria_type": row.get("criteria_type", "unknown"),
-            "text": text,
-            "entities": entities
-        })
+            ner_results.append({
+                "sentence_id": idx,
+                "nct_id": row.get("studyNCTid", "unknown"),
+                "criteria_type": row.get("criteria_type", "unknown"),
+                "text": text,
+                "entities": entities
+            })
     
-    # save predicted entities to disk
-    save_predictions(ner_results, args.output_dir, "ner_predictions")
+        # save predicted entities to disk
+        save_predictions(ner_results, args.output_dir, "ner_predictions")
 
     # (5) Relation Extraction
-    logger.info("Running RE Module...")
-    full_pipeline_results = list()
-    # identify relation between entities from NER module
-    for entry in ner_results:
-        text = entry["text"]
-        entities = entry["entities"]
-        
-        relations = run_re_module(text, entities, re_tokenizer, re_model, device)
-        
-        # combine everything for final output
-        full_pipeline_results.append({
-            **entry,
-            "relations": relations
-        })
     
-    # save predicted relations to disk
-    save_predictions(full_pipeline_results, args.output_dir, "re_predictions")
+    # relation extraction with previous NER
+    if args.mode == "ner+re":
+        logger.info("Running RE Module...")
+        full_pipeline_results = list()
+        # identify relation between entities from NER module
+        for entry in ner_results:
+            text = entry["text"]
+            entities = entry["entities"]
+        
+            relations = run_re_module(text, entities, re_tokenizer, re_model, device)
+        
+            # combine everything for final output
+            full_pipeline_results.append({
+                **entry,
+                "relations": relations
+            })
+    
+        # save predicted relations to disk
+        save_predictions(full_pipeline_results, args.output_dir, "re_predictions")
+    
+    # relation extraction without NER
+    # input data must contain "entities"-column
+    elif args.mode == "re":
+        logger.info("Running RE Module...")
+        full_pipeline_results = list()
+        # load input data
+        if args.data_dir.endswith(".jsonl"):
+            df = pd.read_json(args.data_dir, lines=True)
+        else:
+            df = pd.read_csv(args.data_dir)
+        
+        re_results = list()
+        for idx, row in df.iterrows():
+            # get text and entities from input data
+            text = str(row["text"])
+            entities = row.get("entities", [])
+            # convert input to list
+            # as entities-list from input is loaded as str
+            entities = ast.literal_eval(entities)
+            # identify relations
+            relations = run_re_module(text, entities, re_tokenizer, re_model, device)
+            
+            re_results.append({
+                "sentence_id": idx,
+                "nct_id": row.get("studyNCTid", "unknown"),
+                "criteria_type": row.get("criteria_type", "unknown"),
+                "text": text,
+                "entities": entities,
+                "relations": relations
+                })
+
+        save_predictions(re_results, args.output_dir, "re_predictions")
+    
     logger.info("Pipeline inference completed successfully.")
 
 
@@ -337,8 +379,12 @@ if __name__ == "__main__":
                         help="Directory to save the predictions. Automatically adds 'ner_predictions' and 're_predictions' as file names.")
     
     # model paths
-    parser.add_argument("--ner_model_path", type=str, required=True, help="Path to NER model.")
-    parser.add_argument("--re_model_path", type=str, required=True, help="Path to RE model.")
+    parser.add_argument("--ner_model_path", type=str, help="Path to NER model.")
+    parser.add_argument("--re_model_path", type=str, help="Path to RE model.")
+    
+    # inference mode
+    parser.add_argument("--mode", type=str, default="ner+re", choices=["ner+re", "ner", "re"],
+                        help="Inference mode, whether to apply NER + RE inference, NER only, or RE only.")
     
     # sample size for testing purposes
     parser.add_argument("--sample_size", type=int, default=None,
