@@ -179,7 +179,7 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
 
 def model_init(trial: optuna.Trial, model_checkpoint: str, label2id: dict[str, int], id2label: dict[int, str]):
     """
-    Re-initializes the model for every trial of hyperparameter-optimization.
+    Initializes a model for for hyperparameter optimization.
 
     Args:
         trial (optuna.Trial): The optuna trial object from hyperparamter optimization.
@@ -204,6 +204,12 @@ def hyperparameter_space(trial: optuna.Trial):
     """
     Defines the hyperparameter search space for optuna.
     Sticking to standard narrow ranges for NER.
+    
+    Args:
+        trial (optuna.Trial): The current Optuna trial object
+
+    Returns:
+        A dictionary of hyperparameter suggestions.
     """
     
     return {
@@ -222,7 +228,6 @@ def main(args):
     performs hyperparameter optimization, trains an NER model, 
     evaluates trained model, saves trained model and tokenizer.
     Arguments provided via command line.
-
 
     Args:
         - data_dir (str): Path to the preprocessed chia dataset directory, default="./data/chia_without_scope_parsedNER_v1"
@@ -329,10 +334,10 @@ def main(args):
     logger.info(f"Trained model and tokenizer saved to {args.output_dir}")
     
 
-
+# boilerplate
 if __name__ == "__main__":
     # argparse for command line arguments
-    parser = argparse.ArgumentParser(description="Train a NER model with HPO support.")
+    parser = argparse.ArgumentParser(description="Train an NER model with HPO support.")
     
     # get system paths
     # and then define default paths
