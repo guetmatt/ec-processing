@@ -4,7 +4,7 @@ Chia Dataset Preprocessing Module for Named Entity Recognition (NER)
 This script parses the Chia dataset (chia_without_scope) for NER tasks.
 --> file processing, line-level label alignment, tokenization, iterative stratification, train/test/eval splitting
 
-Usage:
+Usage (argument values to be adjusted by user):
     python ner_parseChia.py --data_dir ./data/chia_raw --output_dir ./data/processed_ner
 """
 

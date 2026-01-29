@@ -7,7 +7,7 @@ of a BERT-based Relation Extraction (RE) model using the HuggingFace Transformer
 - tokenization with added entity marker tokens
 - weighted loss function for class imbalance (NO_RELATION "Explosion")
 
-Usage:
+Usage (argument values to be adjusted by user):
     python re_training.py --data_dir ../data/chia_without_scope_parsedRE_all_v1 --output_dir ../models/RE_model_v1
 """
 

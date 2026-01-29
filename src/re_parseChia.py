@@ -6,7 +6,7 @@ This script parses the Chia dataset (chia_without_scope) for RE tasks.
 --> downsampling of negative examples ("NO_RELATION") to handle class imbalance
 --> stratification, splitting and saving the parsed dataset
 
-Usage:
+Usage (argument values to be adjusted by user):
     python re_parseChia.py --data_dir ../data/chia_without_scope --output_dir ../data/chia_without_scope_parsedRE_v1
 """
 

@@ -4,7 +4,7 @@ NER Training Module
 This script handles the training and hyperparameter optimization
 of a BERT-based Named Entity Recognition (NER) model using the HuggingFace Transformers library.
 
-Usage:
+Usage (argument values to be adjusted by user):
     python ner_training.py --data_dir ../data/chia_without_scope_parsedNER_v1 --output_dir ../models/NER_chia_v1
 """
 

@@ -8,7 +8,7 @@ into a structured, sentence-level format.
 - parses list items within eligibility criteria content
 - exctracts metadata (NCT ids)
 
-Usage:
+Usage (argument values to be adjusted by user):
     python parse_ctg.py --input_path ../data_ctg/Studies_with_id_and_EligibilityCriteria.csv --output_path ../data_ctg/parsedCTG_sentlevel.csv
 """
 
