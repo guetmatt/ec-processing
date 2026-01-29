@@ -158,15 +158,15 @@ def parse_ann_file(ann_path: str):
 
 
 
-def process_files(data_dir: str, global_downsampling_rate: float = None):
+def process_files(data_dir: str, global_downsample_rate: float = None):
     """
     Parses all .txt and .ann files the data_dir to generate relation samples.
     Extracts sentences and generates candidate pairs for all entities within the same sentence.
     
     Args:
         data_dir (str): Directory containing source files from chia dataset
-        global_downsampling_rate (float): If set, randomly drops negative "NO_RELATION" 
-            samples across the entire dataset during parsing.
+        global_downsample_rate (float): If set, randomly drops negative "NO_RELATION" 
+            samples across the entire dataset during parsing. 1.0=keep all. default=None
 
     Returns:
         Tuple[pd.DataFrame, set]: 
@@ -186,8 +186,8 @@ def process_files(data_dir: str, global_downsampling_rate: float = None):
     relation_types_skipped = set()
     
     logger.info(f"Parsing {len(txt_files)} files for relation extraction...")
-    if global_downsampling_rate:
-        logger.info(f"Applying global negative downsampling rate to complete dataset: {global_downsampling_rate}")
+    if global_downsample_rate and global_downsample_rate < 1.0:
+        logger.info(f"Applying global negative downsampling rate to complete dataset: {global_downsample_rate}")
 
     # process each pair of ann- and txt-files
     for txt_path in txt_files:
@@ -260,8 +260,8 @@ def process_files(data_dir: str, global_downsampling_rate: float = None):
                     # global downsampling of negative samples
                     # randomly drop 0.x amount of negative samples in complete dataset
                     # to handle class imbalance / negative sample explosion 
-                    if label == "NO_RELATION" and global_downsampling_rate is not None:
-                        if random.random() > global_downsampling_rate:
+                    if label == "NO_RELATION" and global_downsample_rate is not None and global_downsample_rate < 1.0:
+                        if random.random() > global_downsample_rate:
                             count_neg_dropped += 1
                             continue
                         count_neg_kept += 1
@@ -433,8 +433,8 @@ def main(args):
     Args:
         data_dir (str): Path to directory containing raw .txt and .ann files, default="../data/chia_without_scope"
         output_dir (str): Directory to save the processed chia dataset, default="../data/chia_without_scope_parsedRE_v1"
-        train_downsample_rate (float): [0.0-1.0] Ratio of negative samples (NO_RELATION) to keep in the training split. 0.2=keep 20% of negatives, default=0.2
-        global_downsample_rate (float): [0.0-1.0] Ratio of negative samples (NO_RELATION) to keep across the entire dataset during parsing (affects train, val, and test). 0.2=keep 20% of negatives, default=None (keep all)"
+        train_downsample_rate (float): [0.0-1.0, None] Ratio of negative samples (NO_RELATION) to keep in the training split. 0.2=keep 20% of negatives, 1.0 or None=keep all, default=0.2
+        global_downsample_rate (float): [0.0-1.0, None] Ratio of negative samples (NO_RELATION) to keep across the entire dataset during parsing (affects train, val, and test). 0.2=keep 20% of negatives, 1.0 or None=keep all, default=None"
         seed (int): Random seed for stratification and reproducibility, default=42
     """
     # (1) setup
@@ -444,7 +444,7 @@ def main(args):
     if not os.path.exists(args.data_dir):
         logger.critical(f"Data directory not found: {args.data_dir}")
         sys.exit(1)
-    df, relation_types = process_files(args.data_dir, global_downsampling_rate=args.global_downsample_rate)
+    df, relation_types = process_files(args.data_dir, global_downsample_rate=args.global_downsample_rate)
 
     if df.empty:
         logger.error("No data found or parsed.")
@@ -508,7 +508,7 @@ if __name__ == "__main__":
     # configuration
     parser.add_argument("--train_downsample_rate", type=float, default=0.2,
                         help="Ratio of negative samples (NO_RELATION) to keep in the training split. "
-                             "Default 0.2 means keep 20%% of negatives. Set to 1.0 to keep all.")
+                             "Default 0.2 means keep 20%% of negatives. 1.0 or None = keep all.")
     parser.add_argument("--global_downsample_rate", type=float, default=None,
                         help="Ratio of negative samples (NO_RELATION) to keep across the entire dataset during parsing (affects train, val, and test)."
                             "Default None (keep all). 0.2=keep 20%%, 1.0=keep all.")
