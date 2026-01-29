@@ -290,7 +290,33 @@ def hyperparameter_space(trial: optuna.Trial):
         "weight_decay": trial.suggest_float("weight_decay", 0.01, 0.3),
         "num_train_epochs": trial.suggest_int("num_train_epochs", 4, 8)
     }
+
+
+
+def check_overwrite(output_dir: str):
+    """
+    Checks if the output directory already contains a trained model 
+    and asks the user for confirmation before overwriting.
     
+    Args:
+        output_dir (str): Output directory to be checked.
+    
+    Returns:
+        None
+    """
+    if os.path.exists(output_dir):
+        # check for typical transformer model files
+        model_files = ["config.json", "pytorch_model.bin", "model.safetensors"]
+        for f in model_files:
+            if any(os.path.exists(os.path.join(output_dir, f))):
+                # ask user if existing model should be overwritten
+                print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
+                user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()
+                if user_input != "y":
+                    print("Aborting script to prevent overwriting.")
+                    sys.exit(0)
+    return None
+
     
 
 # --- main execution ---#
@@ -312,6 +338,8 @@ def main(args):
         - do_hpo (bool): Whether to run hyperparameter optimization or not, default=True
         - hpo_trials (int): Number of hyperparameter optimization trials to run, default=10
     """
+    # (0) check for existing model
+    check_overwrite(args.output_dir)
     
     # (1) load dataset
     logger.info(f"Loading dataset from {args.data_dir}...")
