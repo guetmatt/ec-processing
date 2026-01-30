@@ -163,7 +163,7 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
     # calculate metrics
     # average='weighted' accounts for label imbalance (e.g. many 'O' labels)
     precision, recall, f1, _ = precision_recall_fscore_support(
-        true_labels_flat, predictions_flat, average="weighted")
+        true_labels_flat, predictions_flat, average="weighted", zero_division=0)
     accuracy = accuracy_score(true_labels_flat, predictions_flat)
     
     results_dict = {
@@ -235,8 +235,9 @@ def check_overwrite(output_dir: str):
     if os.path.exists(output_dir):
         # check for typical transformer model files
         model_files = ["config.json", "pytorch_model.bin", "model.safetensors"]
-        for f in model_files:
-            if any(os.path.exists(os.path.join(output_dir, f))):
+        # "any" expects iterable input
+        # --> list comprehension
+        if any([os.path.exists(os.path.join(output_dir, f)) for f in model_files]):
                 # ask user if existing model should be overwritten
                 print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
                 user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()

@@ -518,7 +518,7 @@ if __name__ == "__main__":
     
     # check if interactive environment (e.g. jupyter notebook)
     # or command line
-    if 'ipykernel' in sys.modules:
+    if "ipykernel" in sys.modules:
         # notebook mode
         args = parser.parse_args([])
     else:
