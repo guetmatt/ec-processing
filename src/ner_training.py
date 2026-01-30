@@ -238,12 +238,12 @@ def check_overwrite(output_dir: str):
         # "any" expects iterable input
         # --> list comprehension
         if any([os.path.exists(os.path.join(output_dir, f)) for f in model_files]):
-                # ask user if existing model should be overwritten
-                print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
-                user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()
-                if user_input != "y":
-                    print("Aborting script to prevent overwriting.")
-                    sys.exit(0)
+            # ask user if existing model should be overwritten
+            print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
+            user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()
+            if user_input != "y":
+                print("Aborting script to prevent overwriting.")
+                sys.exit(0)
     return None
 
 
@@ -402,8 +402,9 @@ if __name__ == "__main__":
 
     # check if interactive environment (e.g. jupyter notebook)
     # or command line
-    if "ipykernel" in sys.modules:
+    if "ipykernel" in sys.modules and len(sys.argv) < 2:
         # notebook mode
+        # falls back to default arguments, if < 2 arguments provided
         args = parser.parse_args([])
     else:
         # command line mode

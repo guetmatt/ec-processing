@@ -157,10 +157,9 @@ def compute_metrics(eval_pred):
 
 
 def compute_weighted_loss(
-    model,
-    inputs: dict,
-    return_outputs: bool = False, 
-    num_items_in_batch: int = None, 
+    outputs,
+    labels,
+    num_items_in_batch=None, 
     class_weights: torch.Tensor = None
     ):
     """
@@ -168,20 +167,17 @@ def compute_weighted_loss(
     Cross-Entropy loss weighted by class frequency.
 
     Args:
-        model (HuggingFace model): The model that is being trained
-        inputs (dict): Dictionary containing input tensors, including "labels"
-        return_outputs (bool): Whether to return the model outputs along with the loss
+        outputs: SequenceClassififerOutput containing prediction logits
+        labels: Tensor containing ground truth
         num_items_in_batch (int): Argument required by newer Trainer versions (unused here)
         class_weights (torch.Tensor): A tensor of weights for each class, computed on the training split.
 
     Returns:
-        loss (torch.Tensor): The weighted loss calculated by the weighted loss function, (loss, outputs) when return_outputs=True
+        loss (torch.Tensor): The weighted loss calculated by the weighted loss function
     """
-    # extract predictions
-    labels = inputs.get("labels")
-    outputs = model(**inputs)
+    # extract logits from model output
     logits = outputs.get("logits")
-    
+
     # move class_weights to correct device
     # needed for library use
     if class_weights is not None:
@@ -191,10 +187,7 @@ def compute_weighted_loss(
     loss_func = CrossEntropyLoss(weight=class_weights)
     loss = loss_func(logits.view(-1, logits.shape[-1]), labels.view(-1))
     
-    if return_outputs:
-        return (loss, outputs)
-    else:
-        return loss
+    return loss
 
 
 
@@ -314,14 +307,13 @@ def check_overwrite(output_dir: str):
     if os.path.exists(output_dir):
         # check for typical transformer model files
         model_files = ["config.json", "pytorch_model.bin", "model.safetensors"]
-        for f in model_files:
-            if any(os.path.exists(os.path.join(output_dir, f))):
-                # ask user if existing model should be overwritten
-                print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
-                user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()
-                if user_input != "y":
-                    print("Aborting script to prevent overwriting.")
-                    sys.exit(0)
+        if any([os.path.exists(os.path.join(output_dir, f)) for f in model_files]):
+            # ask user if existing model should be overwritten
+            print(f"\n[WARNING] The output directory '{output_dir}' already contains a trained model.")
+            user_input = input("Do you really want to overwrite the existing model? (y/n): ").lower().strip()
+            if user_input != "y":
+                print("Aborting script to prevent overwriting.")
+                sys.exit(0)
     return None
 
     
@@ -351,6 +343,8 @@ def main(args):
     # (1) load dataset
     logger.info(f"Loading dataset from {args.data_dir}...")
     dataset = load_from_disk(args.data_dir)
+    # rename "label" to "labels" for Trainer functionality
+    dataset = dataset.rename_column("label", "labels")
     label2id, id2label = load_label_map(args.data_dir)
 
     # (2) entity marker injection
@@ -367,10 +361,10 @@ def main(args):
                          padding="max_length", max_length=args.max_len)
 
     tokenized_dataset = dataset.map(tokenize_func, batched=True)
-    tokenized_dataset.set_format("torch", columns=["input_ids", "attention_mask", "label"])
+    tokenized_dataset.set_format("torch", columns=["input_ids", "attention_mask", "labels"])
 
     # (4) class weight calculation to handle class imbalance
-    train_labels = dataset["train"]["label"]
+    train_labels = dataset["train"]["labels"]
     weights = compute_class_weight("balanced", classes=np.unique(train_labels), y=train_labels)
     
     # dampening of class weighting to reduce "aggressiveness" of weighting
@@ -500,8 +494,9 @@ if __name__ == "__main__":
     
     # check if interactive environment (e.g. jupyter notebook)
     # or command line
-    if "ipykernel" in sys.modules:
+    if "ipykernel" in sys.modules and len(sys.argv) < 2:
         # notebook mode
+        # falls back to default arguments, if < 2 arguments provided
         args = parser.parse_args([])
     else:
         # command line mode
