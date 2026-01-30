@@ -1,0 +1,35 @@
+COMMAND
+python drive/MyDrive/masters_thesis_computing/src/ner_training.py \
+  --data_dir "drive/MyDrive/masters_thesis_computing/data/chia_without_scope_parsedNER_v1" \
+  --output_dir "drive/MyDrive/masters_thesis_computing/models/NER_chia_seq_v1" \
+  --model_checkpoint "emilyalsentzer/Bio_ClinicalBERT" \
+  --eval_method "seq" \
+  --hpo_trials 10
+
+BEST HYPERPARAMETERS:
+BestRun(run_id='7', objective=1.8199114549059074, hyperparameters={'learning_rate': 3.505683725208616e-05, 'per_device_train_batch_size': 16, 'weight_decay': 0.19617991727210804, 'num_train_epochs': 4}, run_summary=None)
+
+
+TRAINING RESULTS:
+{'train_runtime': '298', 'train_samples_per_second': '109.5', 'train_steps_per_second': '6.847', 'train_loss': '0.2104', 'epoch': '4'}
+100% 2040/2040 [04:58<00:00,  6.84it/s]
+2026-01-30 16:48:06 - INFO - __main__ - Evaluating the trained model on the test set...
+100% 128/128 [00:07<00:00, 18.06it/s]
+
+==============================
+FINAL TEST METRICS
+==============================
+eval_loss: 0.1965
+eval_precision: 0.2884
+eval_recall: 0.3011
+eval_f1: 0.2946
+eval_accuracy: 0.9419
+eval_runtime: 7.1918
+eval_samples_per_second: 141.8270
+eval_steps_per_second: 17.7980
+epoch: 4.0000
+==============================
+
+Writing model shards: 100% 1/1 [00:01<00:00,  1.74s/it]
+2026-01-30 16:48:16 - INFO - __main__ - Trained model and tokenizer saved to drive/MyDrive/masters_thesis_computing/models/NER_chia_seq_v1
+

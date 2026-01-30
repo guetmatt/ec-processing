@@ -1,0 +1,7 @@
+COMMAND
+python drive/MyDrive/masters_thesis_computing/src/ner_training.py \
+  --data_dir "drive/MyDrive/masters_thesis_computing/data/chia_without_scope_parsedNER_v1" \
+  --output_dir "drive/MyDrive/masters_thesis_computing/models/NER_chia_tok_v1" \
+  --model_checkpoint "emilyalsentzer/Bio_ClinicalBERT" \
+  --eval_method "tok" \
+  --hpo_trials 10
