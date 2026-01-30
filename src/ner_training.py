@@ -80,12 +80,12 @@ def load_label_map(input_dir: str, filename: str = "label_map.json"):
 
 def compute_metrics_seq(p: EvalPrediction, id2label: dict[int, str]):
     """
-    Computes precision, recall, F1, and accuracy using the seqeval library.
-    Sequence-based evalaution of named entity spans (not single tokens).
+    Computes precision, recall, F1, and accuracy using the seqeval library
+    Sequence-based evalaution of named entity spans (not single tokens)
 
     Args:
-        p (EvalPrediction): Predictions and labels (tuple) from the Trainer.
-        id2label (dict[int, str]): Mapping from label_id to label_name.
+        p (EvalPrediction): Predictions and labels (tuple) from the Trainer
+        id2label (dict[int, str]): Mapping from label_id to label_name
 
     Returns:
         results_dict (dict[str, float]: Dictionary containing overall precision, recall, f1, and accuracy.
@@ -321,7 +321,7 @@ def main(args):
         args=training_args,
         train_dataset=dataset["train"],
         eval_dataset=dataset["validation"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=data_collator,
         compute_metrics=metrics_func
     )

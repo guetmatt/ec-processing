@@ -157,8 +157,9 @@ def compute_metrics(eval_pred):
 
 
 def compute_weighted_loss(
-    outputs: dict, 
-    labels: torch.Tensor, 
+    model,
+    inputs: dict,
+    return_outputs: bool = False, 
     num_items_in_batch: int = None, 
     class_weights: torch.Tensor = None
     ):
@@ -167,15 +168,18 @@ def compute_weighted_loss(
     Cross-Entropy loss weighted by class frequency.
 
     Args:
-        outputs (dict): Model output dictionary containing the "logits" (predictions)
-        labels (torch.Tensor): Ground truth tensor of label_ids
+        model (HuggingFace model): The model that is being trained
+        inputs (dict): Dictionary containing input tensors, including "labels"
+        return_outputs (bool): Whether to return the model outputs along with the loss
         num_items_in_batch (int): Argument required by newer Trainer versions (unused here)
         class_weights (torch.Tensor): A tensor of weights for each class, computed on the training split.
 
     Returns:
-        loss (torch.Tensor): The weighted loss calculated by the weighted loss function
+        loss (torch.Tensor): The weighted loss calculated by the weighted loss function, (loss, outputs) when return_outputs=True
     """
-    # extract logits (predictions)
+    # extract predictions
+    labels = inputs.get("labels")
+    outputs = model(**inputs)
     logits = outputs.get("logits")
     
     # move class_weights to correct device
@@ -187,7 +191,10 @@ def compute_weighted_loss(
     loss_func = CrossEntropyLoss(weight=class_weights)
     loss = loss_func(logits.view(-1, logits.shape[-1]), labels.view(-1))
     
-    return loss
+    if return_outputs:
+        return (loss, outputs)
+    else:
+        return loss
 
 
 
@@ -402,7 +409,7 @@ def main(args):
         args=training_args,
         train_dataset=tokenized_dataset["train"],
         eval_dataset=tokenized_dataset["validation"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer),
         compute_metrics=compute_metrics,
         compute_loss_func=weighted_loss_func

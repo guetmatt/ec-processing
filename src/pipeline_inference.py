@@ -272,7 +272,7 @@ def main(args):
             model=args.ner_model_path,
             tokenizer=args.ner_model_path,
             aggregation_strategy="simple",
-            device=0 if torch.cuda.is_available() else -1
+            device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
             )
     
     # RE model and tokenizer
