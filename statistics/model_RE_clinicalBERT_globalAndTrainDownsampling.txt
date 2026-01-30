@@ -1,0 +1,12 @@
+COMMAND
+!python drive/MyDrive/masters_thesis_computing/src/re_training.py \
+  --data_dir "drive/MyDrive/masters_thesis_computing/data/chia_without_scope_parsedRE_globalAndTrainDownsampling" \
+  --output_dir "drive/MyDrive/masters_thesis_computing/models/RE_clinicalBERT_globalAndTrainDownsampling" \
+  --model_checkpoint "emilyalsentzer/Bio_ClinicalBERT" \
+  --hpo_trials 4
+
+
+BEST HYPERPARAMETERS
+
+
+TRAINING RESULTS
