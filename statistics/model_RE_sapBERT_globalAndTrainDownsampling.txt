@@ -1,0 +1,13 @@
+COMMAND
+!python drive/MyDrive/masters_thesis_computing/src/re_training.py \
+  --data_dir "drive/MyDrive/masters_thesis_computing/data/chia_without_scope_parsedRE_globalAndTrainDownsampling" \
+  --output_dir "drive/MyDrive/masters_thesis_computing/models/RE_sapBERT_globalAndTrainDownsampling" \
+  --model_checkpoint "cambridgeltl/SapBERT-from-PubMedBERT-fulltext" \
+  --hpo_trials 5
+
+
+BEST HYPERPARAMETERS
+
+
+
+TRAINING RESULTS
