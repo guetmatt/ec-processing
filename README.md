@@ -13,50 +13,268 @@ src/
 ├── parse_ctg.py          # Parses raw data from ClinicalTrials.gov (CTG)
 └── pipeline_inference.py # End-to-end inference (NER -> Pair Generation -> RE)
 
-## (1) Data Preprocessing
-Before training, the raw chia_without_scope dataset (in BRAT format) must be converted into a format compatible with HuggingFace datasets.
 
-### Named Entity Recognition (NER)
-Parses ```.ann``` and ```.txt``` files into tokenized BIO-labeled sequences.
-```python ner_parseChia.py --data_dir ../data/chia_raw --output_dir ../data/processed_ner```
+# Module Documentation & Usage
+The python scripts in the ```src/``` directory build a modular pipeline. Below is the functional breakdown and usage guide for each component.
 
-### Relation Extraction (RE)
-Generates entity pairs within sentences. Includes negative sampling (NO_RELATION) and negative downsampling to manage class imbalance.
-```python re_parseChia.py --data_dir ../data/chia_raw --output_dir ../data/processed_re --train_downsample_rate 0.2```
+## ClinicalTrials.gov data preparation
+### ```parse_ctg.py```
+- Description
+	- Processes raw csv exports from ClinicalTrials.gov
+	- Extracts eligibility criteria text blocks and segments them into sentence-level entries
 
-## (2) Model Training
-Both modules support Hyperparameter Optimization (HPO) via Optuna and are configured to use Bio_ClinicalBERT by default.
+- Arguments
+	- ```data_dir```
+		- Path to the directory with raw ClinicalTrials.gov csv files
+		- Default = ```../data_ctg/Studies_with_id_andEligibilityCriteria.csv```
+	- ```output_dir```
+		- Path to directory to save the processed dataset
+		- Default = ```../data_ctg/parsedCTG_sentlevel.csv```
 
-### Training the NER Module
-Trains a token-classification model. Supports both span-based (seq) and token-based (tok) evaluation.
-```python ner_training.py --data_dir ../data/processed_ner --output_dir ../models/ner_model --eval_method seq --hpo_trials 10```
+- Example uses
+```console
+	python src/parse_ctg.py
+```
+```console
+	python src/parse_ctg.py \
+		--data_dir data_ctg/Studies_with_id_andEligibilityCriteria.csv
+		--output_dir data_ctg/parsedCTG_sentlevel.csv
+```
 
-### Training the RE Module
-Trains a sequence-classification model. This script automatically injects entity markers (e.g., ```[E1]...[/E1]```) to provide the model with positional context of the arguments.
-```python re_training.py --data_dir ../data/processed_re --output_dir ../models/re_model --do_hpo --hpo_trials 10```
 
-## (3) ClinicalTrials.gov (CTG) Data Processing
-To apply the models to real-world data, use the CTG parser to convert CSV exports into sentence-level criteria.
-```python parse_ctg.py --input_path ../data_ctg/raw_trials.csv --output_path ../data_ctg/parsed_sentences.csv```
 
-## (4) End-to-End Inference Pipeline
-The ```pipeline_inference.py``` script connects both modules. It performs the following workflow:
-- 1. NER: Detects entities in raw text.
-- 2. Candidate Pairing: Generates all valid permutations of detected entities.
-- 3. RE: Classifies the relationship for each pair.
+## Named Entity Recognition - Training
+### ```ner_parseChia.py```
+- Description
+	- Prepares the chia dataset for NER training
+	- Parses the ```.ann```- and ```.txt```-files from the directory ```data/chia_without_scope``` into tokenized, BIO-labeled sequences for a sentence-level training dataset
+	- Splits dataset into train/eval/test splits
+	- Handles discontinuous entity spans, realigns entity indices to line-level, and uses iterative stratification to ensure balenced entity distribution across splits
 
-```python pipeline_inference.py \```
-    ```--data_dir ./data_ctg/parsed_sentences.csv \```
-    ```--ner_model_path ./models/ner_model \```
-    ```--re_model_path ./models/re_model \```
-    ```--output_dir ./results/v1 \```
-    ```--mode ner+re``` 
+- Arguments
+	- ```data_dir```
+		- Path to directory with raw dataset
+		- Default = ```../data/chia_without_scope```
+	- ```output_dir```
+		- Path to directory to save the parsed dataset and label mappings to
+		- Default = ```../data/chia_without_scope_parsedNER_v1```
+	- ```model_checkpoint```
+		- HuggingFace model checkpoint for tokenizer
+		- Default = ```emilyalsentzer/Bio_ClinicalBERT```
+	- ```max_len```
+		- Maximum sequence length for tokenization
+		- Default = ```128```
 
-## Key Technical Features
-- Iterative Stratification: Used in ```ner_parseChia.py``` to ensure multi-label balance across train/val/test splits.
-- Entity Marker Injection: The RE module uses a right-to-left injection method to prevent character index shifting during preprocessing.
-- Weighted Loss: ```re_training.py``` implements a square-root dampened class weighting to handle the high frequency of "NO_RELATION" samples.
-- Evaluation: Detailed reporting includes seqeval for NER spans and normalized confusion matrices for RE.
+- Example uses
+```console
+	python src/ner_parseChia.py
+```
+```console
+	python src/ner_parseChia.py \
+		--data_dir data/chia_without_scope \
+		--output_dir data/chia_without_scope_parsedNER_v1 \
+		--model_checkpoint emilyalsentzer/Bio_ClinicalBERT \
+		--max_len 128
+```
+
+
+### ```ner_training.py```
+- Description
+	- Handles training and hyperparameter optimization for the NER model and tokenizer
+	- Supports span-based as well as token-based evaluation
+ 
+- Arguments
+	- ```data_dir```
+		- Path to directory with parsed dataset for NER (from ```ner_parseChia.py```)
+		- Default = ```../data/chia_without_scope_parsedNER_v1```
+	- ```output_dir```
+		- Path to directory to save the trained model and tokenizer to
+		- Default = ```../models/NER_chia_v1```
+	- ```model_checkpoint```
+		- HuggingFace model checkpoint for model and tokenizer that will be trained
+		- Default = ```emilyalsentzer/Bio_ClinicalBERT```
+	- ```eval_method```
+		- Model evaluation strategy during training: ```seq``` (span-based) or ```tok``` (token-based)
+		- Default = ```seq```
+	- ```do_hpo```
+		- Flag to enable hyperparameter optimization (hpo): ```True``` (hpo) or ```False``` (no hpo)
+		- Default = ```True```
+	- ```hpo_trials```
+		- Number of trials for hyperparameter optimization, starts at 0
+		- Default = ```10```
+- Example uses
+```console
+	python src/ner_training.py
+```
+```console
+	python src/ner_training.py \
+		--data_dir data/chia_without_scope_parsedNER_v1 \
+		--output_dir models/NER_chia_v1 \
+		--model_checkpoint emilyalsentzer/Bio_ClinicalBERT \
+		--eval_method seq \
+		--do_hpo True \
+		--hpo_trials 10 \
+```
+
+## Relation Extraction - Training
+### ```re_parseChia.py```
+- Description
+	- Prepares the chia dataset for Relation extraction by generating candidate entity pairs
+	- Splits dataset into train/eval/test splits
+	- Generates directed permutations of entities within a sentence
+	- Handles extreme calss imbalance via negative downsampling
+ 
+- Arguments
+	- ```data_dir```
+		- Path to directory with raw dataset
+		- Default = ```../data/chia_without_scope```
+	- ```output_dir```
+		- Path to directory to save the parsed dataset and label mappings to
+		- Default = ```../data/chia_without_scope_parsedRE_v1```
+	- ```global_downsample_rate```
+		- Ratio of negative samples ("NO_RELATION") tp keep in the entire dataset
+		- [0.0-1.0], 0.2 = keep 20%, 1.0 = keep 100%, None = keep 100%
+		- Default = ```None```
+	- ```train_downsample_rate```
+		- Ratio of negative samples ("NO_RELATION") to keep in the training split
+		- [0.0-1.0], 0.2 = keep 20%, 1.0 = keep 100%, None = keep 100%
+		- Default = ```0.2```
+	- ```seed```
+		- Random seed for reproducibility and stratification
+		- Default = ```42```
+- Example uses
+```console
+	python src/re_parseChia.py
+```
+```console
+	python src/re_parseChia.py \
+	--data_dir data/chia_without_scope \
+	--output_dir data/chia_without_scope_parsedRE_v1 \
+	--global_downsample_rate 0.5 \
+	--train_downsample_rate 0.2 \
+	--seed 42
+```
+
+
+### ```re_training.py```
+- Description
+	- Trains a sequence classifier for relation identification
+	- Injects entity markers into text and resizes model embeddings for new special tokens
+	- Uses weighted cross-entropy loss to account for class imbalance
+ 
+- Arguments
+	- ```data_dir```
+		- Path to the parsed chia dataset directory from ```re_parseChia.py```
+		- Default = ```../data/chia_without_scope_parsedRE_v1```
+	- ```output_dir```
+		- Path to directory to save the trained model and tokenizer to
+		- Default = ```../models/RE_chia_v1```
+	- ```model_checkpoint```
+		- HuggingFace model checkpoint for model and tokenizer that will be trained
+		- Default = ```emilyalsentzer/Bio_ClinicalBERT```
+	- ```max_len```
+		- Maximum sequence length after token injection
+		- Default = ```256```
+	- ```do_hpo```
+		- Flag to enable hyperparameter optimization (hpo): ```True``` (hpo) or ```False``` (no hpo)
+		- Default = ```True```
+	- ```hpo_trials```
+		- Number of trials for hyperparameter optimization, starts at 0
+		- Default = ```10```
+	 
+- Example uses
+```console
+	python src/re_training.py
+```
+```console
+	python src/re_training.py \
+		--data_dir data/chia_without_scope_parsedRE_v1 \
+		--output_dir models/RE_chia_v1 \
+		--model_checkpoint emilyalsentzer/Bio_ClinicalBERT \
+		--max_len 256 \
+		--do_hpo True \
+		--hpo_trials 10
+```
+
+
+## Inference
+### ```pipeline_inference.py```
+- Description
+	- End-to-end pipeline to perform NER and RE on the ClinicalTrials.gov data
+	- Loads preprocessed ClinicalTrials.gov data
+	- Loads trained NER and RE models and tokenizers
+	- Performs NER and RE on ClinicalTrials.gov data
+	- Saves predictions to disk
+
+- Arguments
+	- ```data_dir```
+		- Path to the directory containing the preprocessed ctg dataset
+		- Default = ```../data_ctg/parsedCTG_sentlevel```
+	- ```output_dir```
+		- Path to the directory to save the predictions to
+		- Automatically adds 'ner_predictions' and 're_predictions' as endings to filenames
+		- Default = ```../results```
+	- ```ner_model_path```
+		- Path to the directory containing the NER model
+		- No default
+	- ```re_model_path```
+		- Path to the directory containing the RE model
+		- No default
+	- ```mode```
+		- Falg to apply NER + RE inference, NER only, or RE only
+		- Options: [ner+re, ner, re]
+		- Default = ```ner+re```
+	- ```sample_size```
+		- Number of sentences from ctg-dataset to perform inference on
+		- None = inference on all sentences
+		- Default = ```None```
+
+ - Example uses
+```console
+	python src/pipeline_inference.py \
+		--ner_model_path models/NER_chia_seq_v1 \
+		--re_model_path models/RE_clinicalBERT_globalAndTrainDownsampling
+```
+```console
+	python src/pipeline_inference.py \
+		--data_dir data_ctg/parsedCTG_sentlevel \
+		--output_dir results \
+		--ner_model_path models/NER_chia_seq_v1 \
+		--re_model_path models/RE_clinicalBERT_globalAndTrainDownsampling
+		--mode ner+re \
+		--sample_size None
+
+```
+
+
+## Data analysis
+
+### ```data_statistics.py```
+- Description
+	- Provides descriptive statistics for parsed datasets from ```ner_parseChia.py``` and ```re_parseChia.py```
+	- Metrics: Sentence counts, entity span density, average token counts per entity type, relation class balance ratios
+ 
+- Arguments
+	- ```ner_dir```
+		- Path to the directory with the parsed NER dataset
+		- None = do not get statistics for NER dataset 
+		- Default = ```../data/chia_without_scope_parsedNER_v1```
+	- ```re_dir```
+		- Path to the directory with the parsed RE dataset
+		- None = do not get statistics for RE dataset 
+		- Default = ```../data/chia_without_scope_parsedRE_v1```
+ 
+- Example uses
+```console
+	python src/data_statistics.py
+```
+```console
+	python src/data_statistics.py \
+		--ner_dir data/chia_without_scope_parsedNER_v1 \
+		--re_dir data/chia_without_scope_parsedNER_v1
+```
+
+
 
 ## Requirements
 - Python 3.8+
