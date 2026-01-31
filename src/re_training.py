@@ -432,7 +432,7 @@ def main(args):
     # classification report
     preds_output = trainer.predict(tokenized_dataset["test"])
     y_pred = np.argmax(preds_output.predictions, axis=1)
-    y_true = tokenized_dataset["test"]["label"]
+    y_true = tokenized_dataset["test"]["labels"]
 
    
     # extract all ids and names from label mappings
