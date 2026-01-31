@@ -417,6 +417,8 @@ def main(args):
             hp_space=hyperparameter_space,
             n_trials=args.hpo_trials
         )
+        logger.info(f"Best hyperparameters: {best_run}")
+
         # apply optimal hyperparameters to trainer configuration
         for n, v in best_run.hyperparameters.items():
             setattr(trainer.args, n, v)
