@@ -18,17 +18,98 @@ TRAINING RESULTS:
 100% 128/128 [00:07<00:00, 18.06it/s]
 
 ==============================
-FINAL TEST METRICS
+FINAL TEST METRICS - OVERALL
 ==============================
 eval_loss: 0.1965
-eval_precision: 0.2884
+eval_model_preparation_time: 0.0026
+eval_precision: 0.2883
 eval_recall: 0.3011
 eval_f1: 0.2946
 eval_accuracy: 0.9419
-eval_runtime: 7.1918
-eval_samples_per_second: 141.8270
-eval_steps_per_second: 17.7980
-epoch: 4.0000
+eval_runtime: 9.0846
+eval_samples_per_second: 112.2780
+eval_steps_per_second: 7.0450
+epoch: 0.0000
+==============================
+
+==============================
+FINAL TEST METRICS - PER ENTITY TYPE
+==============================
+eval_entity_Competing_trial_f1: 0.0000
+eval_entity_Competing_trial_precision: 0.0000
+eval_entity_Competing_trial_recall: 0.0000
+eval_entity_Condition_f1: 0.3399
+eval_entity_Condition_precision: 0.3173
+eval_entity_Condition_recall: 0.3659
+eval_entity_Context_Error_f1: 0.0000
+eval_entity_Context_Error_precision: 0.0000
+eval_entity_Context_Error_recall: 0.0000
+eval_entity_Device_f1: 0.1053
+eval_entity_Device_precision: 0.1333
+eval_entity_Device_recall: 0.0870
+eval_entity_Drug_f1: 0.2243
+eval_entity_Drug_precision: 0.2210
+eval_entity_Drug_recall: 0.2276
+eval_entity_Informed_consent_f1: 0.0000
+eval_entity_Informed_consent_precision: 0.0000
+eval_entity_Informed_consent_recall: 0.0000
+eval_entity_Measurement_f1: 0.2355
+eval_entity_Measurement_precision: 0.2360
+eval_entity_Measurement_recall: 0.2351
+eval_entity_Mood_f1: 0.2295
+eval_entity_Mood_precision: 0.3889
+eval_entity_Mood_recall: 0.1628
+eval_entity_Multiplier_f1: 0.1935
+eval_entity_Multiplier_precision: 0.1957
+eval_entity_Multiplier_recall: 0.1915
+eval_entity_Negation_f1: 0.3276
+eval_entity_Negation_precision: 0.3393
+eval_entity_Negation_recall: 0.3167
+eval_entity_Non-query-able_f1: 0.0000
+eval_entity_Non-query-able_precision: 0.0000
+eval_entity_Non-query-able_recall: 0.0000
+eval_entity_Non-representable_f1: 0.0000
+eval_entity_Non-representable_precision: 0.0000
+eval_entity_Non-representable_recall: 0.0000
+eval_entity_Not_a_criteria_f1: 0.1333
+eval_entity_Not_a_criteria_precision: 0.1250
+eval_entity_Not_a_criteria_recall: 0.1429
+eval_entity_Observation_f1: 0.0577
+eval_entity_Observation_precision: 0.1071
+eval_entity_Observation_recall: 0.0395
+eval_entity_Person_f1: 0.6534
+eval_entity_Person_precision: 0.6721
+eval_entity_Person_recall: 0.6357
+eval_entity_Post-eligibility_f1: 0.0000
+eval_entity_Post-eligibility_precision: 0.0000
+eval_entity_Post-eligibility_recall: 0.0000
+eval_entity_Pregnancy_considerations_f1: 0.0000
+eval_entity_Pregnancy_considerations_precision: 0.0000
+eval_entity_Pregnancy_considerations_recall: 0.0000
+eval_entity_Procedure_f1: 0.3379
+eval_entity_Procedure_precision: 0.2997
+eval_entity_Procedure_recall: 0.3874
+eval_entity_Qualifier_f1: 0.2476
+eval_entity_Qualifier_precision: 0.2573
+eval_entity_Qualifier_recall: 0.2387
+eval_entity_Reference_point_f1: 0.2083
+eval_entity_Reference_point_precision: 0.1852
+eval_entity_Reference_point_recall: 0.2381
+eval_entity_Subjective_judgement_f1: 0.0000
+eval_entity_Subjective_judgement_precision: 0.0000
+eval_entity_Subjective_judgement_recall: 0.0000
+eval_entity_Temporal_f1: 0.3057
+eval_entity_Temporal_precision: 0.2804
+eval_entity_Temporal_recall: 0.3360
+eval_entity_Undefined_semantics_f1: 0.0000
+eval_entity_Undefined_semantics_precision: 0.0000
+eval_entity_Undefined_semantics_recall: 0.0000
+eval_entity_Value_f1: 0.3350
+eval_entity_Value_precision: 0.3038
+eval_entity_Value_recall: 0.3732
+eval_entity_Visit_f1: 0.0000
+eval_entity_Visit_precision: 0.0000
+eval_entity_Visit_recall: 0.0000
 ==============================
 
 Writing model shards: 100% 1/1 [00:01<00:00,  1.74s/it]
