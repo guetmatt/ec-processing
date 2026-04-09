@@ -196,9 +196,9 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
         true_labels_flat_merged, predictions_flat_merged, average=None, labels=labels_set, zero_division=0
     )
     for idx, label_name in enumerate(labels_set):
-        results_dict[f"entity_{label_name}_f1"] = precision_per_ent[idx]
-        results_dict[f"entity_{label_name}_precision"] = recall_per_ent[idx]
-        results_dict[f"entity_{label_name}_recall"] = f1_per_ent[idx]
+        results_dict[f"entity_{label_name}_f1"] = f1_per_ent[idx]
+        results_dict[f"entity_{label_name}_precision"] = precision_per_ent[idx]
+        results_dict[f"entity_{label_name}_recall"] = recall_per_ent[idx]
     
     return results_dict
 
