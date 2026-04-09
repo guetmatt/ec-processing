@@ -167,11 +167,21 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
                 predictions_flat.append(p)
                 true_labels_flat.append(l)
     
+    # merge B- and I- labels into one entity label
+    def get_base_name(label_id):
+        name = id2label[label_id]
+        if name.startswith("B-") or name.startswith("I-"):
+            return name[2:]
+        return name 
+    # convert predictions and true labels to base entity names
+    predictions_flat_merged = [get_base_name(p) for p in predictions_flat]
+    true_labels_flat_merged = [get_base_name(l) for l in true_labels_flat]
+    
     # calculate metrics
     # average='weighted' accounts for label imbalance (e.g. many 'O' labels)
     precision, recall, f1, _ = precision_recall_fscore_support(
-        true_labels_flat, predictions_flat, average="weighted", zero_division=0)
-    accuracy = accuracy_score(true_labels_flat, predictions_flat)
+        true_labels_flat_merged, predictions_flat_merged, average="weighted", zero_division=0)
+    accuracy = accuracy_score(true_labels_flat_merged, predictions_flat_merged)
     
     results_dict = {
         "precision": precision,
@@ -181,12 +191,11 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
     }
     
     # metrics per entity type
-    labels_set = sorted(list(set(true_labels_flat)))
+    labels_set = sorted(list(set(true_labels_flat_merged)))
     precision_per_ent, recall_per_ent, f1_per_ent, _ = precision_recall_fscore_support(
-        true_labels_flat, predictions_flat, average=None, labels=labels_set, zero_division=0
+        true_labels_flat_merged, predictions_flat_merged, average=None, labels=labels_set, zero_division=0
     )
-    for idx, label_id in enumerate(labels_set):
-        label_name = id2label[label_id]
+    for idx, label_name in enumerate(labels_set):
         results_dict[f"entity_{label_name}_f1"] = precision_per_ent[idx]
         results_dict[f"entity_{label_name}_precision"] = recall_per_ent[idx]
         results_dict[f"entity_{label_name}_recall"] = f1_per_ent[idx]
