@@ -120,13 +120,20 @@ def compute_metrics_seq(p: EvalPrediction, id2label: dict[int, str]):
         references=true_labels_named, 
         zero_division=0
     )
-    
+    # metrics overall
     results_dict = {
         "precision": results["overall_precision"],
         "recall": results["overall_recall"],
         "f1": results["overall_f1"],
         "accuracy": results["overall_accuracy"],
     } 
+    
+    # metrtics per entity type
+    for key, val in results.items():
+        if isinstance(val, dict):
+            results_dict[f"entity_{key}_f1"] = val["f1"]
+            results_dict[f"entity_{key}_precision"] = val["precision"]
+            results_dict[f"entity_{key}_recall"] = val["recall"]
     
     return results_dict
 
@@ -172,6 +179,17 @@ def compute_metrics_tok(p: EvalPrediction, id2label: dict[int, str]):
         "f1": f1,
         "accuracy": accuracy
     }
+    
+    # metrics per entity type
+    labels_set = sorted(list(set(true_labels_flat)))
+    precision_per_ent, recall_per_ent, f1_per_ent, _ = precision_recall_fscore_support(
+        true_labels_flat, predictions_flat, average=None, labels=labels_set, zero_division=0
+    )
+    for idx, label_id in enumerate(labels_set):
+        label_name = id2label[label_id]
+        results_dict[f"entity_{label_name}_f1"] = precision_per_ent[idx]
+        results_dict[f"entity_{label_name}_precision"] = recall_per_ent[idx]
+        results_dict[f"entity_{label_name}_recall"] = f1_per_ent[idx]
     
     return results_dict
 
@@ -350,14 +368,25 @@ def main(args):
     # (8) final evaluation
     logger.info("Evaluating the trained model on the test set...")
     metrics = trainer.evaluate(dataset["test"])
+    # metrics overall and per entity type
+    metrics_overall = {k: v for k, v in metrics.items() if not k.startswith("eval_entity_")}
+    metrics_entity = {k: v for k, v in metrics.items() if k.startswith("eval_entity_")}   
     
     # print metrics
     print("\n" + "="*30)
-    print("FINAL TEST METRICS")
+    print("FINAL TEST METRICS - OVERALL")
     print("="*30)
-    for key, value in metrics.items():
+    for key, value in metrics_overall.items():
         print(f"{key}: {value:.4f}")
     print("="*30 + "\n")
+    
+    print("\n" + "="*30)
+    print("FINAL TEST METRICS - PER ENTITY TYPE")
+    print("="*30)
+    for key, value in metrics_entity.items():
+        print(f"{key}: {value:.4f}")
+    print("="*30 + "\n")
+    
     
     # (9) save trained model and tokenizer
     trainer.save_model(args.output_dir)
