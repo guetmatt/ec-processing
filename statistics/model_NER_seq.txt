@@ -6,6 +6,7 @@ COMMAND
   --eval_method "seq" \
   --hpo_trials 10
 
+
 BEST HYPERPARAMETERS:
 BestRun(run_id='7', objective=1.8199114549059074, hyperparameters={'learning_rate': 3.505683725208616e-05, 'per_device_train_batch_size': 16, 'weight_decay': 0.19617991727210804, 'num_train_epochs': 4}, run_summary=None)
 
