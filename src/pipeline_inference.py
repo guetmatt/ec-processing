@@ -369,7 +369,7 @@ if __name__ == "__main__":
     # .parent  = src/
     # .parent.parent = project_root/
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
-    DEFAULT_DATA_DIR = PROJECT_ROOT / "data_ctg" / "parsedCTG_sentlevel"
+    DEFAULT_DATA_DIR = PROJECT_ROOT / "data_ctg" / "parsedCTG_sentlevel.csv"
     DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "results"
 
     # data paths

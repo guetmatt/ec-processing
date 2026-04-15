@@ -237,7 +237,7 @@ The python scripts in the ```src/``` directory build a modular pipeline. Below i
 ```
 ```console
 	python src/pipeline_inference.py \
-		--data_dir data_ctg/parsedCTG_sentlevel \
+		--data_dir data_ctg/parsedCTG_sentlevel.csv \
 		--output_dir results \
 		--ner_model_path models/NER_chia_seq_v1 \
 		--re_model_path models/RE_clinicalBERT_globalAndTrainDownsampling
